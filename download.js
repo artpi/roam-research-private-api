@@ -4,11 +4,11 @@ const readdirSync = fs.readdirSync;
 const lstatSync = fs.lstatSync;
 const unzip = require( 'node-unzip-2' );
 
-const credentials = require('secrets.json');
+const secrets = require('./secrets.json');
 
 async function logInAndTriggerDownload( email, pass, db, folder ) {
 	const browser = await puppeteer.launch( {
-		headless: false,
+		headless: true,
 	} );
 	const page = await browser.newPage();
 	await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: folder });
@@ -35,7 +35,12 @@ async function logInAndTriggerDownload( email, pass, db, folder ) {
    // This should contain "Export All"
     await page.waitFor( 2000 );
     await page.click('.bp3-dialog-container .bp3-intent-primary');
-    return browser;
+
+    await page.waitFor( 10000 );
+    // Network idle is a hack to wait until we donwloaded stuff
+    await page.goto('https://news.ycombinator.com/', {waitUntil: 'networkidle2'});
+	browser.close();
+    return;
 }
 
 function getLatestFile( dir ) {
@@ -81,7 +86,7 @@ function getContentsOfRepo( dir, file ) {
 
 ( async () => {
 	const folder = './tmp/';
-	const browser = logInAndTriggerDownload( secrets.email, secrets.password, secrets.graph );
+	const browser = await logInAndTriggerDownload( secrets.email, secrets.password, secrets.graph, folder );
 	const file = getLatestFile( folder );
 	const data = await getContentsOfRepo( folder, file );
 	console.log( data );

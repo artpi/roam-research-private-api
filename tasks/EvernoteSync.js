@@ -29,9 +29,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			.replace( />/g, '&gt;' )
 			.replace( /"/g, '&quot;' );
 	}
-	makeNote( noteTitle, noteBody ) {
+	makeNote( noteTitle, noteBody, url ) {
 		// Create note object
+		const attributes = new Evernote.Types.NoteAttributes();
+		attributes.contentClass = 'piszek.roam';
+		attributes.sourceURL = url;
+		attributes.sourceApplication = 'piszek.roam';
 		var ourNote = new Evernote.Types.Note();
+		ourNote.attributes = attributes;
 		ourNote.title = this.htmlEntities( noteTitle );
 
 		// Build body of note
@@ -96,7 +101,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	}
 
 	syncPage( page ) {
-		const note = this.makeNote( page.title, page.content );
+		let url;
+		if( page.uid ) {
+			url = 'https://roamresearch.com/#/app/artpi/page/' + page.uid;
+		} else {
+			url = 'https://roamresearch.com/#/app/artpi';
+		}
+
+		const note = this.makeNote( page.title, page.content, url );
 		note.then( note2 => {
 			this.mapping[ note2.title ] = note2;
 		} );

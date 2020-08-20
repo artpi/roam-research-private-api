@@ -1,4 +1,3 @@
-
 class RoamSyncAdapter {
 	credentials;
 	pages = [];
@@ -14,8 +13,13 @@ class RoamSyncAdapter {
 
 	wrapItem( string ) {
 		const intend = ''; // this has to grow
-		return intend + ' - ' + string + `
-		`;
+		return (
+			intend +
+			' - ' +
+			string +
+			`
+		`
+		);
 	}
 
 	wrapChildren( childrenString ) {
@@ -27,23 +31,25 @@ class RoamSyncAdapter {
 	}
 	flattenRoamDB( roamData, level ) {
 		let ret = '';
-		if( roamData.string ) {
+		if ( roamData.string ) {
 			ret += this.wrapText( roamData.string );
 		}
-		if( roamData.children ) {
-			ret += this.wrapChildren( roamData.children.map( child => this.flattenRoamDB( child, level +1 ) ) );
+		if ( roamData.children ) {
+			ret += this.wrapChildren(
+				roamData.children.map( ( child ) => this.flattenRoamDB( child, level + 1 ) )
+			);
 		}
 		return this.wrapItem( ret );
 	}
 
 	processDump( data ) {
-		this.pages = data.map( page => {
+		this.pages = data.map( ( page ) => {
 			const newPage = {
 				title: page.title,
-				updateTime: page["edit-time"],
+				updateTime: page[ 'edit-time' ],
 				content: '',
-			}
-			if( page.string ) {
+			};
+			if ( page.string ) {
 				newPage.content = page.string;
 			}
 			if ( page.children && page.children[ 0 ] ) {

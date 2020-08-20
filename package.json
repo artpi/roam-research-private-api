@@ -4,11 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "evernote_sync": "node tasks/task_sync_evernote.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "evernote": "^2.0.5",
     "node-unzip-2": "^0.2.8",
     "puppeteer": "^5.2.1"
   }

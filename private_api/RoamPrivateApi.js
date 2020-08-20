@@ -11,7 +11,7 @@ class RoamPrivateApi {
     login;
     pass;
 
-    constructor( db, login, pass, options = { headless: true, folder: null } ) {
+    constructor( db, login, pass, options = { headless: true, folder: null, nodownload: false } ) {
         this.db = db;
         this.login = login;
         this.pass = pass;
@@ -23,8 +23,11 @@ class RoamPrivateApi {
     }
 
     async getExportData() {
-        // await this.logIn();
-        // await this.downloadExport( this.options.folder );
+        // Mostly for testing purposes when we want to use a preexisting download.
+        if ( ! this.options.nodownload ) {
+            await this.logIn();
+            await this.downloadExport( this.options.folder );
+        }
         const latestExport = this.getLatestFile( this.options.folder );
         const content = await this.getContentsOfRepo( this.options.folder, latestExport );
         await this.close();

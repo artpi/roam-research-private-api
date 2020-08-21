@@ -2,6 +2,7 @@ const puppeteer = require( 'puppeteer' );
 const fs = require( 'fs' );
 const os = require( 'os' );
 const unzip = require( 'node-unzip-2' );
+const { isString } = require( 'util' );
 
 class RoamPrivateApi {
 	options;
@@ -51,9 +52,30 @@ class RoamPrivateApi {
 		await this.page.type( 'input[name=email]', this.login );
 		await this.page.type( 'input[name=password]', this.pass );
 		await this.page.click( '.bp3-button' );
+		await this.page.waitForSelector( '.bp3-icon-more' );
 		return;
 	}
 
+	async quickCapture( text = [] ) {
+		await this.logIn();
+		const page = await this.browser.newPage();
+		await page.emulate( puppeteer.devices[ 'iPhone X' ] );
+		// set user agent (override the default headless User Agent)
+		await page.goto( 'https://roamresearch.com/#/app/' + this.db );
+
+		await page.waitForSelector( '#block-input-quick-capture-window-qcapture' );
+		if ( isString( text ) ) {
+			text = [ text ];
+		}
+
+		text.forEach( async function ( t ) {
+			await page.type( '#block-input-quick-capture-window-qcapture', t );
+			await page.click( 'button.bp3-intent-primary' );
+		} );
+		// page.close();
+		await this.close();
+		return;
+	}
 	async downloadExport( folder ) {
 		await this.page._client.send( 'Page.setDownloadBehavior', {
 			behavior: 'allow',
@@ -82,6 +104,7 @@ class RoamPrivateApi {
 		return;
 	}
 	async close() {
+		await this.page.waitFor( 1000 );
 		if ( this.browser ) {
 			await this.browser.close();
 			this.browser = null;

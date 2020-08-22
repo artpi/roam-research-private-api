@@ -11,7 +11,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return `<li>${ string }</li>`;
 	}
 	wrapText( string ) {
-		string =  this.htmlEntities( string );
+		string = this.htmlEntities( string );
 		string = string.replace( '{{[[TODO]]}}', '<en-todo/>' );
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
@@ -73,43 +73,44 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	sync( pages ) {
 		this.EvernoteClient = new Evernote.Client( this.credentials );
 		// This can potentially introduce a race condition, but it's unlikely. Famous last words.
-		this.EvernoteClient.getUserStore().getUser().then( user => {
-			this.user = user
-		} );
+		this.EvernoteClient.getUserStore()
+			.getUser()
+			.then( ( user ) => {
+				this.user = user;
+			} );
 		this.NoteStore = this.EvernoteClient.getNoteStore();
 		this.findNotebook()
 			.catch( ( err ) => console.log( err ) )
-			.then( () => Promise.all(
-				pages.map( ( page ) => this.syncPage( page ) )
-			) )
+			.then( () => Promise.all( pages.map( ( page ) => this.syncPage( page ) ) ) )
 			.then( () => {
-				Object.values( this.mapping ).forEach( note2 => {
+				Object.values( this.mapping ).forEach( ( note2 ) => {
 					const new_content = note2.content.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
-						if( this.mapping[ contents ] && this.mapping[ contents ].guid ) {
+						if ( this.mapping[ contents ] && this.mapping[ contents ].guid ) {
 							const guid = this.mapping[ contents ].guid;
-							const url = `evernote:///view/${this.user.id}/${this.user.shardId}/${guid}/${guid}/`;
-							return `<a href="${url}">${contents}</a>`
+							const url = `evernote:///view/${ this.user.id }/${ this.user.shardId }/${ guid }/${ guid }/`;
+							return `<a href="${ url }">${ contents }</a>`;
 						}
 						return match;
 					} );
-					if( note2.content !== new_content ) {
+					if ( note2.content !== new_content ) {
 						note2.content = new_content;
-						console.log( "updating note", note2.title, note2.guid );
-						this.NoteStore.updateNote( note2 );					}
+						console.log( 'updating note', note2.title, note2.guid );
+						this.NoteStore.updateNote( note2 );
+					}
 				} );
 			} );
 	}
 
 	syncPage( page ) {
 		let url;
-		if( page.uid ) {
+		if ( page.uid ) {
 			url = 'https://roamresearch.com/#/app/artpi/page/' + page.uid;
 		} else {
 			url = 'https://roamresearch.com/#/app/artpi';
 		}
 
 		const note = this.makeNote( page.title, page.content, url );
-		note.then( note2 => {
+		note.then( ( note2 ) => {
 			this.mapping[ note2.title ] = note2;
 		} );
 		return note;

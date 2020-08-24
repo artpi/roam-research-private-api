@@ -1,5 +1,5 @@
-const RoamPrivateApi = require( '../private_api/RoamPrivateApi' );
-const EvernoteSyncAdapter = require( './EvernoteSync' );
+const RoamPrivateApi = require( '../' );
+const EvernoteSyncAdapter = require( '../EvernoteSync' );
 const secrets = require( '../secrets.json' );
 const api = new RoamPrivateApi( secrets.graph, secrets.email, secrets.password, {
 	headless: false,

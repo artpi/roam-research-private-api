@@ -4,4 +4,4 @@ const api = new RoamPrivateApi( secrets.graph, secrets.email, secrets.password, 
 	headless: false,
 } );
 
-api.quickCapture( [ 'This is a test [Source](http://www.wp.pl)' ] );
+api.quickCapture( [ 'This is [a great site](https://deliber.at)' ] );

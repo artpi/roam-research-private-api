@@ -44,10 +44,15 @@ class RoamPrivateApi {
 		this.browser = await puppeteer.launch( {
 			headless: this.options.headless,
 		} );
-		this.page = await this.browser.newPage();
-		await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );
-		await this.page.waitForNavigation();
-		await this.page.waitForSelector( 'input[name=email]' );
+		try {
+			this.page = await this.browser.newPage();
+			await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );
+			await this.page.waitForNavigation();
+			await this.page.waitForSelector( 'input[name=email]' );
+		} catch( e ) {
+			console.error( 'Cannot load the login screen!' );
+			throw( e );
+		}
 		// Login
 		await this.page.type( 'input[name=email]', this.login );
 		await this.page.type( 'input[name=password]', this.pass );

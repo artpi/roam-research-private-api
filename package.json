@@ -1,6 +1,6 @@
 {
 	"name": "roam-research-private-api",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"main": "RoamPrivateApi.js",
 	"repository": {
@@ -11,6 +11,9 @@
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"evernote_sync": "node examples/sync_evernote.js",
 		"reformat-files": "./node_modules/.bin/prettier --ignore-path .eslintignore --write \"**/*.{js,jsx,json,ts,tsx}\""
+	},
+	"bin": {
+		"roam-quick": "examples/quick_capture.js"
 	},
 	"author": "Artur Piszek ( piszek.com )",
 	"license": "MIT",

@@ -3,6 +3,10 @@
 	"version": "0.1.0",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"main": "RoamPrivateApi.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/artpi/roam-research-private-api"
+	},
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"evernote_sync": "node examples/sync_evernote.js",
@@ -13,7 +17,8 @@
 	"dependencies": {
 		"evernote": "^2.0.5",
 		"node-unzip-2": "^0.2.8",
-		"puppeteer": "^5.2.1"
+		"puppeteer": "^5.2.1",
+		"yargs": "^15.4.1"
 	},
 	"devDependencies": {
 		"prettier": "npm:wp-prettier@2.0.5"

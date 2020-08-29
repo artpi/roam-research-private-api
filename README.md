@@ -32,6 +32,7 @@ Or you can pass the data from stdin - on Mac that can be your clipboard:
 pbpaste | roam-quick --graph your_graph_name --email your@email.com -p your_password --stdin
 ```
 
+I very much intend to write a more comprehensive tutorial on my blog **[Deliberate Internet](https://deliber.at)**. Sign up to my newsletter if you don't want to miss it.
 
 
 This is very much work in progress! Pull requests welcome :)

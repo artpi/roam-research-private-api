@@ -49,9 +49,9 @@ class RoamPrivateApi {
 			await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );
 			await this.page.waitForNavigation();
 			await this.page.waitForSelector( 'input[name=email]' );
-		} catch( e ) {
+		} catch ( e ) {
 			console.error( 'Cannot load the login screen!' );
-			throw( e );
+			throw e;
 		}
 		// Login
 		await this.page.type( 'input[name=email]', this.login );

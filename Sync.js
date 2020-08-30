@@ -8,7 +8,10 @@ class RoamSyncAdapter {
 	}
 
 	sync( pages ) {
-		console.log( pages );
+		return new Promise( ( resolve, reject ) => {
+			console.log( pages );
+			resolve( this.titleMapping );
+		} );
 	}
 
 	wrapItem( string ) {
@@ -42,8 +45,8 @@ class RoamSyncAdapter {
 		return this.wrapItem( ret );
 	}
 
-	processDump( data ) {
-		this.pages = data.map( ( page ) => {
+	processJSON( newData ) {
+		this.pages = newData.map( ( page ) => {
 			const newPage = {
 				title: page.title,
 				updateTime: page[ 'edit-time' ],
@@ -56,10 +59,14 @@ class RoamSyncAdapter {
 				newPage.uid = page.children[ 0 ].uid;
 				newPage.content += this.flattenRoamDB( page, 0 );
 			}
-			this.titleMapping[ page.title ] = newPage;
+			// It will be set if previously saved. Otherwise, we have to 'empty it';
+			if ( ! this.titleMapping[ page.title ] ) {
+				this.titleMapping[ page.title ] = {};
+			}
+			Object.assign( this.titleMapping[ page.title ], newPage );
 			return newPage;
 		} );
-		this.sync( this.pages );
+		return this.sync( this.pages );
 	}
 }
 

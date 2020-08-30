@@ -109,8 +109,8 @@ class RoamPrivateApi {
 		return;
 	}
 	async close() {
-		await this.page.waitFor( 1000 );
 		if ( this.browser ) {
+			await this.page.waitFor( 1000 );
 			await this.browser.close();
 			this.browser = null;
 		}

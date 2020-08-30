@@ -1,5 +1,4 @@
 const Evernote = require( 'evernote' );
-const fs = require( 'fs' );
 const RoamSyncAdapter = require( './Sync' );
 
 class EvernoteSyncAdapter extends RoamSyncAdapter {
@@ -7,6 +6,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	NoteStore = null;
 	notebookGuid = '';
 	mapping = {};
+	backlinks = {};
 
 	wrapItem( string ) {
 		return `<li>${ string }</li>`;
@@ -15,7 +15,9 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		string = this.htmlEntities( string );
 		string = string.replace( '{{[[TODO]]}}', '<en-todo/>' );
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
+		string = string.replace( /!\[([^\]]+)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
+		string = string.replace( '**(.*?)**', '<b>$1</b>' );
 		return string;
 	}
 
@@ -31,6 +33,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			.replace( /"/g, '&quot;' );
 	}
 
+	wrapNote( noteBody ) {
+		var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
+		nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
+		nBody += '<en-note>' + noteBody;
+		nBody += '</en-note>';
+		return nBody;
+	}
+
 	makeNote( noteTitle, noteBody, url, guid = null ) {
 		// Create note object
 		let note;
@@ -44,10 +54,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return note.then( ( ourNote ) => {
 			// Build body of note
 
-			var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
-			nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
-			nBody += '<en-note>' + noteBody;
-			nBody += '</en-note>';
+			var nBody = this.wrapNote( noteBody );
 			if ( ourNote.content && ourNote.content === nBody ) {
 				console.log( 'Content of ' + noteTitle + ' has not changed, skipping' );
 				return Promise.resolve( ourNote );
@@ -101,7 +108,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					this.mapping[ note.title ] = note.guid;
 				} );
 			}
-			if ( result.startIndex + result.notes.length < result.notes.totalNotes ) {
+			if ( result.startIndex + result.notes.length < result.totalNotes ) {
 				return this.NoteStore.findNotesMetadata(
 					filter,
 					result.startIndex + batchCount,
@@ -113,6 +120,16 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			}
 		};
 		return this.NoteStore.findNotesMetadata( filter, 0, batchCount, spec ).then( loadMoreNotes );
+	}
+
+	addBacklink( title, note ) {
+		if ( ! this.backlinks[ title ] ) {
+			this.backlinks[ title ] = [];
+		}
+		this.backlinks[ title ].push( note );
+	}
+	getNoteUrl( guid ) {
+		return `evernote:///view/${ this.user.id }/${ this.user.shardId }/${ guid }/${ guid }/`;
 	}
 
 	sync( pages ) {
@@ -138,7 +155,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 						const new_content = note2.content.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
 							if ( this.mapping[ contents ] && this.mapping[ contents ].guid ) {
 								const guid = this.mapping[ contents ].guid;
-								const url = `evernote:///view/${ this.user.id }/${ this.user.shardId }/${ guid }/${ guid }/`;
+								const url = this.getNoteUrl( guid );
+								this.addBacklink( contents, note2 );
 								return `<a href="${ url }">${ contents }</a>`;
 							}
 							return match;
@@ -152,6 +170,31 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 						}
 					} )
 				)
+			)
+			.then( () =>
+				Promise.all(
+					Object.keys( this.backlinks ).map( ( title ) => {
+						const list = this.backlinks[ title ]
+							.map(
+								( note ) =>
+									'<li><a href="' + this.getNoteUrl( note.guid ) + '">' + note.title + '</a></li>'
+							)
+							.join( '' );
+						const backlinks = '<h2>Linked References</h2><ul>' + list + '</ul>';
+						if ( ! this.mapping[ title ].content ) {
+							this.mapping[ title ].content = this.wrapNote( backlinks );
+						} else {
+							this.mapping[ title ].content = this.mapping[ title ].content.replace(
+								'</en-note>',
+								backlinks + '</en-note>'
+							);
+						}
+						console.log( 'Updating backlinks in ' + title );
+						return this.NoteStore.updateNote( this.mapping[ title ] ).catch( ( err ) =>
+							console.log( 'Problem while updating backlinks in ' + title, err )
+						);
+					} )
+				).catch( ( err ) => console.log( 'Problem while updating backlinks', err ) )
 			);
 	}
 

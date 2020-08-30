@@ -41,9 +41,7 @@ class RoamPrivateApi {
 		if ( this.browser ) {
 			return this.browser;
 		}
-		this.browser = await puppeteer.launch( {
-			headless: this.options.headless,
-		} );
+		this.browser = await puppeteer.launch( this.options );
 		try {
 			this.page = await this.browser.newPage();
 			await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );

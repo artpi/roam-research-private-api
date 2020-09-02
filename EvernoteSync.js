@@ -8,16 +8,27 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	mapping = {};
 	backlinks = {};
 
-	wrapItem( string ) {
+	wrapItem( string, title ) {
 		return `<li>${ string }</li>`;
 	}
-	wrapText( string ) {
+	wrapText( string, title ) {
+		const backlinks = [];
 		string = this.htmlEntities( string );
 		string = string.replace( '{{[[TODO]]}}', '<en-todo/>' );
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
-		string = string.replace( /!\[([^\]]+)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
+		string = string.replace( /\!\[([^\]]*?)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
-		string = string.replace( '**(.*?)**', '<b>$1</b>' );
+		string = string.replace( '/\*\*(.*?)\*\*/g', '<b>$1</b>' );
+		string = string.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
+			if ( this.mapping[ contents ] ) {
+				const guid = this.mapping[ contents ];
+				const url = this.getNoteUrl( guid );
+				backlinks.push( contents );
+				return `<a href="${ url }">${ contents }</a>`;
+			}
+			return match;
+		} );
+		this.addBacklink( backlinks , title, string );
 		return string;
 	}
 
@@ -45,11 +56,18 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		// Create note object
 		let note;
 		if ( guid ) {
-			note = this.NoteStore.getNote( guid, true, false, false, false );
 			console.log( 'Note ' + noteTitle + ' should already exist' );
+			note = this.NoteStore.getNote( guid, true, false, false, false );
+			note.catch( err => {
+				console.warn( 'Took too long to pull note ' + noteTitle );
+			} );
+			// note.catch( err => new Promise( ( resolve, reject ) => setTimeout( () => {
+			// 	console.log( 'Took to long, retrying ' + noteTitle );
+			// 	resolve( this.NoteStore.getNote( guid, true, false, false, false ) );
+			// } ) ) );
 		} else {
-			note = Promise.resolve( new Evernote.Types.Note() );
 			console.log( 'Creating new note for ' + noteTitle );
+			note = Promise.resolve( new Evernote.Types.Note() );
 		}
 		return note.then( ( ourNote ) => {
 			// Build body of note
@@ -122,80 +140,41 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return this.NoteStore.findNotesMetadata( filter, 0, batchCount, spec ).then( loadMoreNotes );
 	}
 
-	addBacklink( title, note ) {
-		if ( ! this.backlinks[ title ] ) {
-			this.backlinks[ title ] = [];
-		}
-		this.backlinks[ title ].push( note );
+	addBacklink( titles, target, text ) {
+		titles.forEach( title => {
+			if ( ! this.backlinks[ title ] ) {
+				this.backlinks[ title ] = [];
+			}
+			this.backlinks[ title ].push( {
+				target: target,
+				text: text
+			} );
+		} );
 	}
 	getNoteUrl( guid ) {
 		return `evernote:///view/${ this.user.id }/${ this.user.shardId }/${ guid }/${ guid }/`;
 	}
+	init() {
+		this.EvernoteClient = new Evernote.Client( this.credentials );
+		this.NoteStore = this.EvernoteClient.getNoteStore();
+
+		return Promise.all( [
+			new Promise( ( resolve, reject ) => {
+				this.EvernoteClient.getUserStore()
+				.getUser()
+				.then( ( user ) => {
+					this.user = user;
+					resolve();
+				} );
+			} ),
+			this.findNotebook().catch( ( err ) => console.log( err ) ),
+			this.loadPreviousNotes()
+		] );
+	}
 
 	sync( pages ) {
-		this.EvernoteClient = new Evernote.Client( this.credentials );
 		// This can potentially introduce a race condition, but it's unlikely. Famous last words.
-		this.EvernoteClient.getUserStore()
-			.getUser()
-			.then( ( user ) => {
-				this.user = user;
-			} );
-		this.NoteStore = this.EvernoteClient.getNoteStore();
-		return this.findNotebook()
-			.catch( ( err ) => console.log( err ) )
-			.then( () => this.loadPreviousNotes() )
-			.then( () => Promise.all( pages.map( ( page ) => this.syncPage( page ) ) ) )
-			.then( () =>
-				Promise.all(
-					Object.values( this.mapping ).map( ( note2 ) => {
-						// Notes with empty content may have issues?
-						if ( ! note2 || ! note2.content ) {
-							return Promise.resolve();
-						}
-						const new_content = note2.content.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
-							if ( this.mapping[ contents ] && this.mapping[ contents ].guid ) {
-								const guid = this.mapping[ contents ].guid;
-								const url = this.getNoteUrl( guid );
-								this.addBacklink( contents, note2 );
-								return `<a href="${ url }">${ contents }</a>`;
-							}
-							return match;
-						} );
-						if ( note2.content !== new_content ) {
-							note2.content = new_content;
-							console.log( 'updating note with links' + note2.title );
-							return this.NoteStore.updateNote( note2 );
-						} else {
-							return Promise.resolve();
-						}
-					} )
-				)
-			)
-			.then( () =>
-				Promise.all(
-					Object.keys( this.backlinks ).map( ( title ) => {
-						const list = this.backlinks[ title ]
-							.map(
-								( note ) =>
-									'<li><a href="' + this.getNoteUrl( note.guid ) + '">' + note.title + '</a></li>'
-							)
-							.join( '' );
-						const backlinks = '<h2>Linked References</h2><ul>' + list + '</ul>';
-						if ( ! this.mapping[ title ].content ) {
-							this.mapping[ title ].content = this.wrapNote( backlinks );
-						} else {
-							this.mapping[ title ].content = this.mapping[ title ].content.replace(
-								'</en-note>',
-								backlinks + '</en-note>'
-							);
-						}
-						console.log( 'Updating backlinks in ' + title );
-						return this.NoteStore.updateNote( this.mapping[ title ] ).catch( ( err ) =>
-							console.log( 'Problem while updating backlinks in ' + title, err )
-						);
-					} )
-				).catch( ( err ) => console.log( 'Problem while updating backlinks', err ) )
-			);
+		return Promise.all( pages.map( ( page ) => this.syncPage( page ) ) );
 	}
 
 	syncPage( page ) {
@@ -205,17 +184,32 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		} else {
 			url = 'https://roamresearch.com/#/app/artpi';
 		}
+		let newContent = page.content;
+		if( this.backlinks[ page.title ] ) {
+			const list = this.backlinks[ page.title ]
+			.map(
+				( target ) => {
+					let reference = '[[' + target.target + ']]';
+					if( this.mapping[ target.target ] ) {
+						reference = '<a href="' + this.getNoteUrl( this.mapping[ target.target ] ) + '">' + target.target + '</a>';
+					}
+					return '<li>' + reference + ': ' + target.text + '</li>';
+				}
+					
+			)
+			.join( '' );
+		
+			const backlinks = '<h3>Linked References</h3><ul>' + list + '</ul>';
+			newContent = page.content + backlinks;
+			console.log( newContent );
+		}
 
-		const note = this.makeNote(
+		return this.makeNote(
 			page.title,
-			page.content,
+			newContent,
 			url,
 			this.mapping[ page.title ] ? this.mapping[ page.title ] : null
 		);
-		note.then( ( note2 ) => {
-			this.mapping[ note2.title ] = note2;
-		} );
-		return note;
 	}
 }
 

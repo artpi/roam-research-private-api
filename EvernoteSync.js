@@ -5,7 +5,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	EvernoteClient = null;
 	NoteStore = null;
 	notebookGuid = '';
-	mapping = {};
+	mapping;
 	backlinks = {};
 
 	wrapItem( string, title ) {
@@ -18,10 +18,10 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
 		string = string.replace( /\!\[([^\]]*?)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
-		string = string.replace( '/\*\*(.*?)\*\*/g', '<b>$1</b>' );
+		string = string.replace( '/\*\*([\*]+)\*\*/g', '<b>$1</b>' );
 		string = string.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
-			if ( this.mapping[ contents ] ) {
-				const guid = this.mapping[ contents ];
+			if ( this.mapping.get( contents ) ) {
+				const guid = this.mapping.get( contents );
 				const url = this.getNoteUrl( guid );
 				backlinks.push( contents );
 				return `<a href="${ url }">${ contents }</a>`;
@@ -43,7 +43,13 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			.replace( />/g, '&gt;' )
 			.replace( /"/g, '&quot;' );
 	}
-
+	htmlEntitiesDecode( str ) {
+		return String( str )
+			.replace( '&amp;', '&',  )
+			.replace( '&lt;', '<',  )
+			.replace( '&gt;', '>',  )
+			.replace( '&quot;', '"' );
+	}
 	wrapNote( noteBody ) {
 		var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
 		nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
@@ -52,21 +58,24 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return nBody;
 	}
 
-	makeNote( noteTitle, noteBody, url, guid = null ) {
+	makeNote( noteTitle, noteBody, url ) {
+		// if( ! this.mapping.get( noteTitle ) ) {
+		// 	console.log(noteTitle);
+		// } 
+		// return Promise.resolve();
 		// Create note object
 		let note;
-		if ( guid ) {
-			console.log( 'Note ' + noteTitle + ' should already exist' );
-			note = this.NoteStore.getNote( guid, true, false, false, false );
+		if ( this.mapping.get( noteTitle ) ) {
+			// console.log( '[[' + noteTitle + ']] should already exist' );
+			note = this.NoteStore.getNote( this.mapping.get( noteTitle ), true, false, false, false );
 			note.catch( err => {
-				console.warn( 'Took too long to pull note ' + noteTitle );
+				console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
 			} );
 			// note.catch( err => new Promise( ( resolve, reject ) => setTimeout( () => {
 			// 	console.log( 'Took to long, retrying ' + noteTitle );
 			// 	resolve( this.NoteStore.getNote( guid, true, false, false, false ) );
 			// } ) ) );
 		} else {
-			console.log( 'Creating new note for ' + noteTitle );
 			note = Promise.resolve( new Evernote.Types.Note() );
 		}
 		return note.then( ( ourNote ) => {
@@ -74,7 +83,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 
 			var nBody = this.wrapNote( noteBody );
 			if ( ourNote.content && ourNote.content === nBody ) {
-				console.log( 'Content of ' + noteTitle + ' has not changed, skipping' );
+				// console.log( '[[' + noteTitle + ']]: has not changed, skipping' );
 				return Promise.resolve( ourNote );
 			}
 			ourNote.content = nBody;
@@ -86,15 +95,19 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			ourNote.attributes = attributes;
 			ourNote.title = this.htmlEntities( noteTitle );
 
-			console.log( 'saving note ' + noteTitle );
-			if ( guid ) {
+			if ( ourNote.guid ) {
+				console.log( '[[' + noteTitle + ']]: updating' );
 				return this.NoteStore.updateNote( ourNote );
 			} else {
 				// parentNotebook is optional; if omitted, default notebook is used
 				if ( this.notebookGuid ) {
 					ourNote.notebookGuid = this.notebookGuid;
 				}
-				return this.NoteStore.createNote( ourNote );
+				console.log( '[[' + noteTitle + ']] Creating new note ' );
+				return this.NoteStore.createNote( ourNote ).then( note => {
+					this.mapping.set( noteTitle, note.guid );
+					return Promise.resolve( note );
+				} );
 			}
 		} );
 	}
@@ -114,6 +127,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		} );
 	}
 	loadPreviousNotes() {
+		let duplicates = 0;
 		const filter = new Evernote.NoteStore.NoteFilter();
 		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
 		spec.includeTitle = true;
@@ -123,17 +137,24 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		const loadMoreNotes = ( result ) => {
 			if ( result.notes ) {
 				result.notes.forEach( ( note ) => {
-					this.mapping[ note.title ] = note.guid;
+					const title = this.htmlEntitiesDecode( note.title );
+					if( ! this.mapping.get( title ) ) {
+						this.mapping.set( title, note.guid );
+					} else if ( this.mapping.get( title ) !== note.guid ) {
+						console.log( '[['+ title + ']]', 'Note is a duplicate ', this.mapping.get( title ),  note.guid );
+						// this.NoteStore.deleteNote( note.guid );
+					}
 				} );
 			}
-			if ( result.startIndex + result.notes.length < result.totalNotes ) {
+			if ( result.startIndex < result.totalNotes ) {
 				return this.NoteStore.findNotesMetadata(
 					filter,
-					result.startIndex + batchCount,
+					result.startIndex + result.notes.length,
 					batchCount,
 					spec
 				).then( loadMoreNotes );
 			} else {
+				console.log(this.mapping.batchCount);
 				return Promise.resolve( this.mapping );
 			}
 		};
@@ -154,7 +175,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	getNoteUrl( guid ) {
 		return `evernote:///view/${ this.user.id }/${ this.user.shardId }/${ guid }/${ guid }/`;
 	}
-	init() {
+	init( prevData = {} ) {
+		this.mapping = new Map( prevData );
 		this.EvernoteClient = new Evernote.Client( this.credentials );
 		this.NoteStore = this.EvernoteClient.getNoteStore();
 
@@ -167,14 +189,18 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					resolve();
 				} );
 			} ),
-			this.findNotebook().catch( ( err ) => console.log( err ) ),
+			this.findNotebook().catch( ( err ) => console.log( 'Cannot find notebook Roam:', err ) ),
 			this.loadPreviousNotes()
 		] );
 	}
 
 	sync( pages ) {
 		// This can potentially introduce a race condition, but it's unlikely. Famous last words.
-		return Promise.all( pages.map( ( page ) => this.syncPage( page ) ) );
+		var p = Promise.resolve();
+		pages.forEach( page => {
+			p = p.then( () => this.syncPage( page ) ).catch( err => console.warn( 'Problem with syncing page ' + page.title, err ) );
+		} );
+		return p.then( () => Promise.resolve( this.mapping ) );
 	}
 
 	syncPage( page ) {
@@ -190,8 +216,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			.map(
 				( target ) => {
 					let reference = '[[' + target.target + ']]';
-					if( this.mapping[ target.target ] ) {
-						reference = '<a href="' + this.getNoteUrl( this.mapping[ target.target ] ) + '">' + target.target + '</a>';
+					if( this.mapping.get( target.target ) ) {
+						reference = '<a href="' + this.getNoteUrl( this.mapping.get( target.target ) ) + '">' + target.target + '</a>';
 					}
 					return '<li>' + reference + ': ' + target.text + '</li>';
 				}
@@ -201,14 +227,12 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		
 			const backlinks = '<h3>Linked References</h3><ul>' + list + '</ul>';
 			newContent = page.content + backlinks;
-			console.log( newContent );
 		}
 
 		return this.makeNote(
 			page.title,
 			newContent,
 			url,
-			this.mapping[ page.title ] ? this.mapping[ page.title ] : null
 		);
 	}
 }

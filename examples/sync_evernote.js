@@ -2,14 +2,22 @@ const RoamPrivateApi = require( '../' );
 const EvernoteSyncAdapter = require( '../EvernoteSync' );
 const secrets = require( '../secrets.json' );
 var fs = require( 'fs' );
+
 const api = new RoamPrivateApi( secrets.graph, secrets.email, secrets.password, {
-	headless: false,
+	headless: true,
 	folder: './tmp/',
-	nodownload: true,
+    nodownload: false,
+	// userDataDir: "./user_data",
+    executablePath: '/usr/bin/google-chrome',
+    // args: ['--no-sandbox', '--disable-setuid-sandbox']
 } );
 const e = new EvernoteSyncAdapter( { token: secrets.evernote_token, sandbox: false } );
 
-api
-	.getExportData()
+fs.readFile( './tmp/mapping.json' )
+	.then( data => e.init( JSON.parse( data ) ) )
+	.catch( err => e.init( null ) )
+    .then( () => api.getExportData() )
+    // .then( () => console.log( Object.keys( e.mapping ).length ) );
 	.then( ( data ) => e.processJSON( data ) )
-	.then( ( titleMapping ) => console.log( 'Success!' ) );
+	.then( ( titleMapping ) => fs.writeFile( './tmp/mapping.json', JSON.stringify( [ ...e.mapping ] ), 'utf8' ) )
+	.then( () => console.log( 'success' ) );

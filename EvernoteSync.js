@@ -18,7 +18,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
 		string = string.replace( /\!\[([^\]]*?)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
-		string = string.replace( '/\*\*([\*]+)\*\*/g', '<b>$1</b>' );
+		string = string.replace( '/**([^*]+)**/g', '<b>$1</b>' );
 		string = string.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
 			if ( this.mapping.get( contents ) ) {
 				const guid = this.mapping.get( contents );
@@ -28,7 +28,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			}
 			return match;
 		} );
-		this.addBacklink( backlinks , title, string );
+		this.addBacklink( backlinks, title, string );
 		return string;
 	}
 
@@ -45,9 +45,9 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	}
 	htmlEntitiesDecode( str ) {
 		return String( str )
-			.replace( '&amp;', '&',  )
-			.replace( '&lt;', '<',  )
-			.replace( '&gt;', '>',  )
+			.replace( '&amp;', '&' )
+			.replace( '&lt;', '<' )
+			.replace( '&gt;', '>' )
 			.replace( '&quot;', '"' );
 	}
 	wrapNote( noteBody ) {
@@ -61,14 +61,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	makeNote( noteTitle, noteBody, url ) {
 		// if( ! this.mapping.get( noteTitle ) ) {
 		// 	console.log(noteTitle);
-		// } 
+		// }
 		// return Promise.resolve();
 		// Create note object
 		let note;
 		if ( this.mapping.get( noteTitle ) ) {
 			// console.log( '[[' + noteTitle + ']] should already exist' );
 			note = this.NoteStore.getNote( this.mapping.get( noteTitle ), true, false, false, false );
-			note.catch( err => {
+			note.catch( ( err ) => {
 				console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
 			} );
 			// note.catch( err => new Promise( ( resolve, reject ) => setTimeout( () => {
@@ -104,7 +104,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					ourNote.notebookGuid = this.notebookGuid;
 				}
 				console.log( '[[' + noteTitle + ']] Creating new note ' );
-				return this.NoteStore.createNote( ourNote ).then( note => {
+				return this.NoteStore.createNote( ourNote ).then( ( note ) => {
 					this.mapping.set( noteTitle, note.guid );
 					return Promise.resolve( note );
 				} );
@@ -138,10 +138,15 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			if ( result.notes ) {
 				result.notes.forEach( ( note ) => {
 					const title = this.htmlEntitiesDecode( note.title );
-					if( ! this.mapping.get( title ) ) {
+					if ( ! this.mapping.get( title ) ) {
 						this.mapping.set( title, note.guid );
 					} else if ( this.mapping.get( title ) !== note.guid ) {
-						console.log( '[['+ title + ']]', 'Note is a duplicate ', this.mapping.get( title ),  note.guid );
+						console.log(
+							'[[' + title + ']]',
+							'Note is a duplicate ',
+							this.mapping.get( title ),
+							note.guid
+						);
 						// this.NoteStore.deleteNote( note.guid );
 					}
 				} );
@@ -154,7 +159,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					spec
 				).then( loadMoreNotes );
 			} else {
-				console.log(this.mapping.batchCount);
+				console.log( this.mapping.batchCount );
 				return Promise.resolve( this.mapping );
 			}
 		};
@@ -162,13 +167,13 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	}
 
 	addBacklink( titles, target, text ) {
-		titles.forEach( title => {
+		titles.forEach( ( title ) => {
 			if ( ! this.backlinks[ title ] ) {
 				this.backlinks[ title ] = [];
 			}
 			this.backlinks[ title ].push( {
 				target: target,
-				text: text
+				text: text,
 			} );
 		} );
 	}
@@ -183,22 +188,24 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return Promise.all( [
 			new Promise( ( resolve, reject ) => {
 				this.EvernoteClient.getUserStore()
-				.getUser()
-				.then( ( user ) => {
-					this.user = user;
-					resolve();
-				} );
+					.getUser()
+					.then( ( user ) => {
+						this.user = user;
+						resolve();
+					} );
 			} ),
 			this.findNotebook().catch( ( err ) => console.log( 'Cannot find notebook Roam:', err ) ),
-			this.loadPreviousNotes()
+			this.loadPreviousNotes(),
 		] );
 	}
 
 	sync( pages ) {
 		// This can potentially introduce a race condition, but it's unlikely. Famous last words.
 		var p = Promise.resolve();
-		pages.forEach( page => {
-			p = p.then( () => this.syncPage( page ) ).catch( err => console.warn( 'Problem with syncing page ' + page.title, err ) );
+		pages.forEach( ( page ) => {
+			p = p
+				.then( () => this.syncPage( page ) )
+				.catch( ( err ) => console.warn( 'Problem with syncing page ' + page.title, err ) );
 		} );
 		return p.then( () => Promise.resolve( this.mapping ) );
 	}
@@ -211,29 +218,27 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			url = 'https://roamresearch.com/#/app/artpi';
 		}
 		let newContent = page.content;
-		if( this.backlinks[ page.title ] ) {
+		if ( this.backlinks[ page.title ] ) {
 			const list = this.backlinks[ page.title ]
-			.map(
-				( target ) => {
+				.map( ( target ) => {
 					let reference = '[[' + target.target + ']]';
-					if( this.mapping.get( target.target ) ) {
-						reference = '<a href="' + this.getNoteUrl( this.mapping.get( target.target ) ) + '">' + target.target + '</a>';
+					if ( this.mapping.get( target.target ) ) {
+						reference =
+							'<a href="' +
+							this.getNoteUrl( this.mapping.get( target.target ) ) +
+							'">' +
+							target.target +
+							'</a>';
 					}
 					return '<li>' + reference + ': ' + target.text + '</li>';
-				}
-					
-			)
-			.join( '' );
-		
+				} )
+				.join( '' );
+
 			const backlinks = '<h3>Linked References</h3><ul>' + list + '</ul>';
 			newContent = page.content + backlinks;
 		}
 
-		return this.makeNote(
-			page.title,
-			newContent,
-			url,
-		);
+		return this.makeNote( page.title, newContent, url );
 	}
 }
 

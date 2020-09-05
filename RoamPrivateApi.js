@@ -144,7 +144,7 @@ class RoamPrivateApi {
 					entry.autodrain();
 				}
 			} );
-			stream.on( 'finish', function () {
+			stream.on( 'close', function () {
 				fs.readFile( dir + 'db.json', 'utf8', function ( err, data ) {
 					if ( err ) {
 						reject( err );

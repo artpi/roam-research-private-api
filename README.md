@@ -9,6 +9,7 @@ It logs into chrome and performs actions on front-end, just as you would manuall
 ## Examples
 
 - [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js)
+- [Import arbitrary data into any note](https://github.com/artpi/roam-research-private-api/blob/master/examples/import-data.js)
 - [Send note to Roam using the Quick Capture feature](https://github.com/artpi/roam-research-private-api/blob/master/examples/quick_capture.js)
 
 

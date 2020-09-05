@@ -59,6 +59,29 @@ class RoamPrivateApi {
 		return;
 	}
 
+	async import( items = [] ) {
+		const fileName = this.options.folder + 'roam-research-private-api-sync.json';
+		fs.writeFileSync( fileName, JSON.stringify( items ) );
+		await this.logIn();
+
+		await this.page.waitForSelector( '.bp3-icon-more' );
+		await this.page.click( '.bp3-icon-more' );
+		// This should contain "Export All"
+		await this.page.waitFor( 2000 );
+		await this.page.click( '.bp3-menu :nth-child(5) a' );
+		await this.page.waitForSelector( 'input[type=file]' );
+		await this.page.waitFor(1000);
+		// get the ElementHandle of the selector above
+		const inputUploadHandle = await this.page.$('input[type=file]');
+
+		// Sets the value of the file input to fileToUpload
+		inputUploadHandle.uploadFile( fileName );
+		await this.page.waitForSelector( '.bp3-dialog .bp3-intent-primary' );
+		await this.page.click( '.bp3-dialog .bp3-intent-primary' );
+		// await this.close();
+		return;
+	}
+
 	async quickCapture( text = [] ) {
 		await this.logIn();
 		const page = await this.browser.newPage();

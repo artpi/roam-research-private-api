@@ -63,12 +63,12 @@ class RoamPrivateApi {
 		const fileName = this.options.folder + 'roam-research-private-api-sync.json';
 		fs.writeFileSync( fileName, JSON.stringify( items ) );
 		await this.logIn();
-
 		await this.page.waitForSelector( '.bp3-icon-more' );
-		await this.page.click( '.bp3-icon-more' );
-		// This should contain "Export All"
-		await this.page.waitFor( 2000 );
-		await this.page.click( '.bp3-menu :nth-child(5) a' );
+		await this.clickMenuItem( 'Import Files' );
+		// await this.page.click( '.bp3-icon-more' );
+		// // This should contain "Export All"
+		// await this.page.waitFor( 2000 );
+		// await this.page.click( '.bp3-menu :nth-child(5) a' );
 		await this.page.waitForSelector( 'input[type=file]' );
 		await this.page.waitFor(1000);
 		// get the ElementHandle of the selector above
@@ -78,7 +78,7 @@ class RoamPrivateApi {
 		inputUploadHandle.uploadFile( fileName );
 		await this.page.waitForSelector( '.bp3-dialog .bp3-intent-primary' );
 		await this.page.click( '.bp3-dialog .bp3-intent-primary' );
-		// await this.close();
+		await this.page.waitFor( 3000 );
 		return;
 	}
 
@@ -102,17 +102,35 @@ class RoamPrivateApi {
 		await this.close();
 		return;
 	}
+	async clickMenuItem( title ) {
+		await this.page.click( '.bp3-icon-more' );
+		// This should contain "Export All"
+		await this.page.waitFor( 1000 );
+		await this.page.evaluate( title => {
+			const items = [...document.querySelectorAll('.bp3-menu li a') ];
+			items.forEach( item => {
+				console.log( item.innerText, title );
+				if ( item.innerText === title ) {
+					item.click();
+					return;
+				}
+			});
+		}, title );
+	}
 	async downloadExport( folder ) {
 		await this.page._client.send( 'Page.setDownloadBehavior', {
 			behavior: 'allow',
 			downloadPath: folder,
 		} );
 		// Try to download
+		// await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );
+		// await this.page.waitForNavigation();
 		await this.page.waitForSelector( '.bp3-icon-more' );
-		await this.page.click( '.bp3-icon-more' );
-		// This should contain "Export All"
-		await this.page.waitFor( 2000 );
-		await this.page.click( '.bp3-menu :nth-child(4) a' );
+		await this.clickMenuItem( 'Export All' );
+		// await this.page.click( '.bp3-icon-more' );
+		// // This should contain "Export All"
+		// await this.page.waitFor( 2000 );
+		// await this.page.click( '.bp3-menu :nth-child(4) a' );
 		//Change markdown to JSON:
 		// This should contain markdown
 		await this.page.waitFor( 2000 );

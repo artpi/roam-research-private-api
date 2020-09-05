@@ -1,4 +1,5 @@
 const Evernote = require( 'evernote' );
+const ENML = require( 'enml-js' );
 const RoamSyncAdapter = require( './Sync' );
 
 class EvernoteSyncAdapter extends RoamSyncAdapter {
@@ -125,6 +126,33 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 				}
 			} );
 		} );
+	}
+	getRoamPayload() {
+		const filter = new Evernote.NoteStore.NoteFilter();
+		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
+		spec.includeTitle = false;
+		filter.words = 'tag:RoamInbox';
+		const batchCount = 100;
+		let notes = [];
+		const loadMoreNotes = ( result ) => {
+			if ( result.notes ) {
+				notes = notes.concat( result.notes.map( note => this.NoteStore.getNote( note.guid, true, false, false, false ).then( note => {
+					note.md = ENML.PlainTextOfENML( note.content );
+					return Promise.resolve( note );
+				} ) ) );
+			}
+			if ( result.startIndex < result.totalNotes ) {
+				return this.NoteStore.findNotesMetadata(
+					filter,
+					result.startIndex + result.notes.length,
+					batchCount,
+					spec
+				).then( loadMoreNotes );
+			} else {
+				return Promise.resolve( this.mapping );
+			}
+		};
+		return this.NoteStore.findNotesMetadata( filter, 0, batchCount, spec ).then( loadMoreNotes ).then( () => Promise.all( notes ) );
 	}
 	loadPreviousNotes() {
 		let duplicates = 0;

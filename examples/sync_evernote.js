@@ -4,7 +4,7 @@ const secrets = require( '../secrets.json' );
 var fs = require( 'fs' ).promises;
 
 const api = new RoamPrivateApi( secrets.graph, secrets.email, secrets.password, {
-	headless: false,
+	headless: true,
 	folder: './tmp/',
 	nodownload: false,
 	// userDataDir: "./user_data",
@@ -18,6 +18,7 @@ fs.readFile( './tmp/mapping.json' )
 	.catch( ( err ) => e.init( null ) )
 	.then( () => e.getNotesToImport() )
 	.then( payload => api.import( ( e.getRoamPayload( payload ) ) ) )
+	.then( () => e.cleanupImportNotes() )
 	.then( () => api.getExportData() )
 	// .then( () => console.log( Object.keys( e.mapping ).length ) );
 	.then( ( data ) => e.processJSON( data ) )

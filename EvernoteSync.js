@@ -171,6 +171,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			}
 		} );
 	}
+	cleanupImportNotes() {
+		return Promise.all( this.notesBeingImported.map( note => {
+			note.tagGuids = [];
+			note.tagNames = [ 'RoamImported' ];
+			return this.NoteStore.updateNote( note );
+		} ) );
+	}
+
 	loadPreviousNotes() {
 		let duplicates = 0;
 		const filter = new Evernote.NoteStore.NoteFilter();

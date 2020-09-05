@@ -17,7 +17,7 @@ fs.readFile( './tmp/mapping.json' )
 	.then( ( data ) => e.init( JSON.parse( data ) ) )
 	.catch( ( err ) => e.init( null ) )
 	.then( () => e.getNotesToImport() )
-	.then( payload => api.import( ( e.getRoamPayload( payload ) ) ) )
+	.then( ( payload ) => api.import( e.getRoamPayload( payload ) ) )
 	.then( () => e.cleanupImportNotes() )
 	.then( () => api.getExportData() )
 	// .then( () => console.log( Object.keys( e.mapping ).length ) );

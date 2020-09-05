@@ -6,4 +6,6 @@ const api = new RoamPrivateApi( secrets.graph, secrets.email, secrets.password, 
 	headless: false,
 	folder: './tmp/',
 } );
-api.import( [{"title": "test","children": [{"string": "Test child"}, {"string": "Another test child"}]}] );
+api.import( [
+	{ title: 'test', children: [ { string: 'Test child' }, { string: 'Another test child' } ] },
+] );

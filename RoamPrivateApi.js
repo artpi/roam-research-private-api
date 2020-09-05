@@ -70,9 +70,9 @@ class RoamPrivateApi {
 		// await this.page.waitFor( 2000 );
 		// await this.page.click( '.bp3-menu :nth-child(5) a' );
 		await this.page.waitForSelector( 'input[type=file]' );
-		await this.page.waitFor(1000);
+		await this.page.waitFor( 1000 );
 		// get the ElementHandle of the selector above
-		const inputUploadHandle = await this.page.$('input[type=file]');
+		const inputUploadHandle = await this.page.$( 'input[type=file]' );
 
 		// Sets the value of the file input to fileToUpload
 		inputUploadHandle.uploadFile( fileName );
@@ -106,15 +106,15 @@ class RoamPrivateApi {
 		await this.page.click( '.bp3-icon-more' );
 		// This should contain "Export All"
 		await this.page.waitFor( 1000 );
-		await this.page.evaluate( title => {
-			const items = [...document.querySelectorAll('.bp3-menu li a') ];
-			items.forEach( item => {
+		await this.page.evaluate( ( title ) => {
+			const items = [ ...document.querySelectorAll( '.bp3-menu li a' ) ];
+			items.forEach( ( item ) => {
 				console.log( item.innerText, title );
 				if ( item.innerText === title ) {
 					item.click();
 					return;
 				}
-			});
+			} );
 		}, title );
 	}
 	async downloadExport( folder ) {

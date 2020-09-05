@@ -1,7 +1,7 @@
 const Evernote = require( 'evernote' );
 const ENML = require( 'enml-js' );
 const RoamSyncAdapter = require( './Sync' );
-const moment = require('moment');
+const moment = require( 'moment' );
 
 class EvernoteSyncAdapter extends RoamSyncAdapter {
 	EvernoteClient = null;
@@ -137,7 +137,11 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		const batchCount = 100;
 		const loadMoreNotes = ( result ) => {
 			if ( result.notes ) {
-				this.notesBeingImported = this.notesBeingImported.concat( result.notes.map( note => this.NoteStore.getNote( note.guid, true, false, false, false ) ) );
+				this.notesBeingImported = this.notesBeingImported.concat(
+					result.notes.map( ( note ) =>
+						this.NoteStore.getNote( note.guid, true, false, false, false )
+					)
+				);
 			}
 			if ( result.startIndex < result.totalNotes ) {
 				return this.NoteStore.findNotesMetadata(
@@ -150,33 +154,39 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 				return Promise.resolve( this.mapping );
 			}
 		};
-		return ( this.NoteStore.findNotesMetadata( filter, 0, batchCount, spec ).then( loadMoreNotes ).then( () => Promise.all( this.notesBeingImported ).then( notes => {
-			this.notesBeingImported = notes;
-			return Promise.resolve( notes );
-		} ) ) );
+		return this.NoteStore.findNotesMetadata( filter, 0, batchCount, spec )
+			.then( loadMoreNotes )
+			.then( () =>
+				Promise.all( this.notesBeingImported ).then( ( notes ) => {
+					this.notesBeingImported = notes;
+					return Promise.resolve( notes );
+				} )
+			);
 	}
 	adjustTitle( title ) {
 		if ( title === 'Bez tytułu' || title === 'Untitled Note' ) {
-			return moment( new Date() ).format('MMMM Do, YYYY');
+			return moment( new Date() ).format( 'MMMM Do, YYYY' );
 		} else {
 			return title;
 		}
 	}
 	getRoamPayload() {
-		return this.notesBeingImported.map( note => {
+		return this.notesBeingImported.map( ( note ) => {
 			const md = ENML.PlainTextOfENML( note.content );
 			return {
 				title: this.adjustTitle( note.title ),
-				children: [ { "string": md } ] 
-			}
+				children: [ { string: md } ],
+			};
 		} );
 	}
 	cleanupImportNotes() {
-		return Promise.all( this.notesBeingImported.map( note => {
-			note.tagGuids = [];
-			note.tagNames = [ 'RoamImported' ];
-			return this.NoteStore.updateNote( note );
-		} ) );
+		return Promise.all(
+			this.notesBeingImported.map( ( note ) => {
+				note.tagGuids = [];
+				note.tagNames = [ 'RoamImported' ];
+				return this.NoteStore.updateNote( note );
+			} )
+		);
 	}
 
 	loadPreviousNotes() {

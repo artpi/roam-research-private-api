@@ -1,6 +1,6 @@
 {
 	"name": "roam-research-private-api",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"main": "RoamPrivateApi.js",
 	"repository": {

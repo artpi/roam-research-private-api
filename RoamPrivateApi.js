@@ -55,6 +55,7 @@ class RoamPrivateApi {
 		await this.page.type( 'input[name=email]', this.login );
 		await this.page.type( 'input[name=password]', this.pass );
 		await this.page.click( '.bp3-button' );
+		await this.page.waitFor( 15000 ); // This is initial roam load. Can take A LONG time.
 		await this.page.waitForSelector( '.bp3-icon-more' );
 		return;
 	}
@@ -142,8 +143,8 @@ class RoamPrivateApi {
 		await this.page.waitFor( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-intent-primary' );
 
-		await this.page.waitFor( 10000 );
-		// Network idle is a hack to wait until we donwloaded stuff
+		await this.page.waitFor( 60000 ); // This can take quite some time on slower systems
+		// Network idle is a hack to wait until we donwloaded stuff. I don't think it works though.
 		await this.page.goto( 'https://news.ycombinator.com/', { waitUntil: 'networkidle2' } );
 		return;
 	}
@@ -185,15 +186,20 @@ class RoamPrivateApi {
 					entry.autodrain();
 				}
 			} );
+			// Timeouts are here so that the system locks can be removed - takes time on some systems.
 			stream.on( 'close', function () {
-				fs.readFile( dir + 'db.json', 'utf8', function ( err, data ) {
-					if ( err ) {
-						reject( err );
-					} else {
-						resolve( JSON.parse( data ) );
-						fs.unlink( dir + 'db.json', () => {} );
-					}
-				} );
+				setTimeout( function() {
+					fs.readFile( dir + 'db.json', 'utf8', function ( err, data ) {
+						if ( err ) {
+							reject( err );
+						} else {
+							resolve( JSON.parse( JSON.stringify(data) ) );
+							setTimeout( function() {
+								fs.unlink( dir + 'db.json', () => {} );
+							}, 1000 );	
+						}
+					} );
+				}, 1000 );
 			} );
 		} );
 	}

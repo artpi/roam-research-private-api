@@ -193,7 +193,7 @@ class RoamPrivateApi {
 						if ( err ) {
 							reject( err );
 						} else {
-							resolve( JSON.parse( JSON.stringify(data) ) );
+							resolve( JSON.parse( data ) );
 							setTimeout( function() {
 								fs.unlink( dir + 'db.json', () => {} );
 							}, 1000 );	

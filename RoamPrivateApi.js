@@ -99,6 +99,7 @@ class RoamPrivateApi {
 			await page.type( '#block-input-quick-capture-window-qcapture', t );
 			await page.click( 'button.bp3-intent-primary' );
 		} );
+		await page.waitFor( 500 );
 		// page.close();
 		await this.close();
 		return;

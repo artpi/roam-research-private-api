@@ -4,7 +4,7 @@ This library is a helper to automate your Roam Research adventures.
 
 ## How does it work?
 
-It logs into chrome and performs actions on front-end, just as you would manually. No need to install chrome, this library comes with one.
+It logs into chrome and performs actions on front-end, just as you would manually. No need to install chrome, this library comes with one. It uses your login and password, so **this won't work if you are using Google login**.
 
 ## Examples
 

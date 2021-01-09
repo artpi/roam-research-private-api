@@ -22,7 +22,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
 		string = string.replace( /\!\[([^\]]*?)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
 		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
-		string = string.replace( '/**([^*]+)**/g', '<b>$1</b>' );
+		string = string.replace( '/\*\*([^*]+)\*\*/g', '<b>$1</b>' );
 		string = string.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
 			if ( this.mapping.get( contents ) ) {
 				const guid = this.mapping.get( contents );

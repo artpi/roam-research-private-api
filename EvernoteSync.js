@@ -18,12 +18,14 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	wrapText( string, title ) {
 		const backlinks = [];
 		string = this.htmlEntities( string );
-		string = string.replace( '{{[[TODO]]}}', '<en-todo/>' );
+		string = string.replace( '{{[[TODO]]}}', '[[TODO]]' ); // <en-todo/> will not achieve the same goal.
 		string = string.replace( '{{{[[DONE]]}}}}', '<en-todo checked="true"/>' );
 		string = string.replace( /\!\[([^\]]*?)\]\(([^\)]+)\)/g, '<img src="$2"/>' );
-		string = string.replace( /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' );
-		string = string.replace( '/\*\*([^*]+)\*\*/g', '<b>$1</b>' );
-		string = string.replace( /\[\[([^\]]+)\]\]/g, ( match, contents ) => {
+		string = string.replace( /\[([^\]]+)\]\((http|evernote)([^\)]+)\)/g, '<a href="$2$3">$1</a>' );
+		string = string.replace( /(^|[^"?/])((evernote|http|https|mailto):[a-zA-Z0-9\/.\?\&=;\-_]+)/g, '$1<a href="$2">$2</a>' );
+		string = string.replace( /\*\*([^*]+)\*\*/g, '<b>$1</b>' );
+		string = string.replace( /__([^_]+)__/g, '<i>$1</i>' );
+		string = string.replace( /#?\[\[([^\]]+)\]\]/g, ( match, contents ) => {
 			if ( this.mapping.get( contents ) ) {
 				const guid = this.mapping.get( contents );
 				const url = this.getNoteUrl( guid );
@@ -97,7 +99,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			attributes.sourceURL = url;
 			attributes.sourceApplication = 'piszek.roam';
 			ourNote.attributes = attributes;
-			ourNote.title = this.htmlEntities( noteTitle );
+			ourNote.title = this.htmlEntities( noteTitle.trim() );
 
 			if ( ourNote.guid ) {
 				console.log( '[[' + noteTitle + ']]: updating' );
@@ -211,8 +213,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 						console.log(
 							'[[' + title + ']]',
 							'Note is a duplicate ',
-							this.mapping.get( title ),
-							note.guid
+							this.getNoteUrl( this.mapping.get( title ) ),
+							this.getNoteUrl( note.guid )
 						);
 						// this.NoteStore.deleteNote( note.guid );
 					}
@@ -226,7 +228,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					spec
 				).then( loadMoreNotes );
 			} else {
-				console.log( this.mapping.batchCount );
+				console.log( batchCount );
 				return Promise.resolve( this.mapping );
 			}
 		};
@@ -272,7 +274,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		pages.forEach( ( page ) => {
 			p = p
 				.then( () => this.syncPage( page ) )
-				.catch( ( err ) => console.warn( 'Problem with syncing page ' + page.title, err ) );
+				.catch( ( err ) => console.warn( 'Problem with syncing page ' + page.title, err, page.content ) );
 		} );
 		return p.then( () => Promise.resolve( this.mapping ) );
 	}
@@ -280,9 +282,9 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	syncPage( page ) {
 		let url;
 		if ( page.uid ) {
-			url = 'https://roamresearch.com/#/app/artpi/page/' + page.uid;
+			url = `https://roamresearch.com/#/app/${this.graphName}/page/` + page.uid;
 		} else {
-			url = 'https://roamresearch.com/#/app/artpi';
+			url = 'https://roamresearch.com/#/app/' + this.graphName;
 		}
 		let newContent = page.content;
 		if ( this.backlinks[ page.title ] ) {

@@ -1,10 +1,12 @@
 class RoamSyncAdapter {
 	credentials;
+	graphName = '';
 	pages = [];
 	titleMapping = {};
 
-	constructor( data ) {
+	constructor( data, graphName ) {
 		this.credentials = data;
+		this.graphName = graphName;
 	}
 
 	sync( pages ) {

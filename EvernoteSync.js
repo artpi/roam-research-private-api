@@ -7,6 +7,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	EvernoteClient = null;
 	NoteStore = null;
 	notebookGuid = '';
+	defaultNotebook = '';
 	mapping;
 	backlinks = {};
 	notesBeingImported = [];
@@ -119,6 +120,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return new Promise( ( resolve, reject ) => {
 			this.NoteStore.listNotebooks().then( ( notebooks ) => {
 				const filtered = notebooks.filter( ( nb ) => nb.name === 'Roam' );
+				const def = notebooks.filter( ( nb ) => nb.defaultNotebook );
+				this.defaultNotebook = def[ 0 ].guid
 				if ( filtered ) {
 					this.notebookGuid = filtered[ 0 ].guid;
 					resolve( this.notebookGuid );
@@ -133,7 +136,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		const filter = new Evernote.NoteStore.NoteFilter();
 		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
 		spec.includeTitle = false;
-		filter.words = 'tag:RoamInbox';
+		filter.words = '-tag:RoamImported';
+		filter.notebookGuid = this.defaultNotebook;
 		const batchCount = 100;
 		const loadMoreNotes = ( result ) => {
 			if ( result.notes ) {
@@ -163,8 +167,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 				} )
 			);
 	}
-	adjustTitle( title ) {
-		if ( title === 'Bez tytułu' || title === 'Untitled Note' ) {
+	adjustTitle( title, force ) {
+		if ( force || title === 'Bez tytułu' || title === 'Untitled Note' ) {
 			return moment( new Date() ).format( 'MMMM Do, YYYY' );
 		} else {
 			return title;
@@ -174,8 +178,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return this.notesBeingImported.map( ( note ) => {
 			const md = ENML.PlainTextOfENML( note.content );
 			return {
-				title: this.adjustTitle( note.title ),
-				children: [ { string: md } ],
+				title: this.adjustTitle( note.title, true ),
+				children: [ { string: 'Imported from Evernote: [' + note.title + '](' + this.getNoteUrl( note.guid ) + ')', children: [ { string: md } ] } ],
 			};
 		} );
 	}

@@ -162,7 +162,7 @@ class RoamPrivateApi {
 		const orderReccentFiles = ( dir ) =>
 			fs
 				.readdirSync( dir )
-				.filter( ( f ) => fs.lstatSync( dir + f ).isFile() )
+				.filter( ( f ) => fs.lstatSync( dir + f ) && fs.lstatSync( dir + f ).isFile() )
 				.filter( ( f ) => f.indexOf( 'Roam-Export' ) !== -1 )
 				.map( ( file ) => ( { file, mtime: fs.lstatSync( dir + file ).mtime } ) )
 				.sort( ( a, b ) => b.mtime.getTime() - a.mtime.getTime() );
@@ -194,10 +194,7 @@ class RoamPrivateApi {
 						if ( err ) {
 							reject( err );
 						} else {
-							resolve( JSON.parse( data ) );
-							setTimeout( function() {
-								fs.unlink( dir + 'db.json', () => {} );
-							}, 1000 );	
+							resolve( JSON.parse( data ) );	
 						}
 					} );
 				}, 1000 );

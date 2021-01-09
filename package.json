@@ -22,7 +22,7 @@
 		"evernote": "^2.0.5",
 		"moment": "^2.27.0",
 		"node-unzip-2": "^0.2.8",
-		"puppeteer": "^5.2.1",
+		"puppeteer": "^5.5.0",
 		"yargs": "^15.4.1"
 	},
 	"devDependencies": {

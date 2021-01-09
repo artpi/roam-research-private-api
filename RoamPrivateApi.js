@@ -44,6 +44,7 @@ class RoamPrivateApi {
 		this.browser = await puppeteer.launch( this.options );
 		try {
 			this.page = await this.browser.newPage();
+			this.page.setDefaultTimeout( 60000 );
 			await this.page.goto( 'https://roamresearch.com/#/app/' + this.db );
 			await this.page.waitForNavigation();
 			await this.page.waitForSelector( 'input[name=email]' );
@@ -55,7 +56,6 @@ class RoamPrivateApi {
 		await this.page.type( 'input[name=email]', this.login );
 		await this.page.type( 'input[name=password]', this.pass );
 		await this.page.click( '.bp3-button' );
-		await this.page.waitFor( 15000 ); // This is initial roam load. Can take A LONG time.
 		await this.page.waitForSelector( '.bp3-icon-more' );
 		return;
 	}
@@ -71,7 +71,7 @@ class RoamPrivateApi {
 		// await this.page.waitFor( 2000 );
 		// await this.page.click( '.bp3-menu :nth-child(5) a' );
 		await this.page.waitForSelector( 'input[type=file]' );
-		await this.page.waitFor( 1000 );
+		await this.page.waitForTimeout( 1000 );
 		// get the ElementHandle of the selector above
 		const inputUploadHandle = await this.page.$( 'input[type=file]' );
 
@@ -79,7 +79,7 @@ class RoamPrivateApi {
 		inputUploadHandle.uploadFile( fileName );
 		await this.page.waitForSelector( '.bp3-dialog .bp3-intent-primary' );
 		await this.page.click( '.bp3-dialog .bp3-intent-primary' );
-		await this.page.waitFor( 3000 );
+		await this.page.waitForTimeout( 3000 );
 		return;
 	}
 
@@ -99,7 +99,7 @@ class RoamPrivateApi {
 			await page.type( '#block-input-quick-capture-window-qcapture', t );
 			await page.click( 'button.bp3-intent-primary' );
 		} );
-		await page.waitFor( 500 );
+		await page.waitForTimeout( 500 );
 		// page.close();
 		await this.close();
 		return;
@@ -107,7 +107,7 @@ class RoamPrivateApi {
 	async clickMenuItem( title ) {
 		await this.page.click( '.bp3-icon-more' );
 		// This should contain "Export All"
-		await this.page.waitFor( 1000 );
+		await this.page.waitForTimeout( 1000 );
 		await this.page.evaluate( ( title ) => {
 			const items = [ ...document.querySelectorAll( '.bp3-menu li a' ) ];
 			items.forEach( ( item ) => {
@@ -135,23 +135,23 @@ class RoamPrivateApi {
 		// await this.page.click( '.bp3-menu :nth-child(4) a' );
 		//Change markdown to JSON:
 		// This should contain markdown
-		await this.page.waitFor( 2000 );
+		await this.page.waitForTimeout( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper button' );
 		// This should contain JSON
-		await this.page.waitFor( 2000 );
+		await this.page.waitForTimeout( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper .bp3-popover-dismiss' );
 		// This should contain "Export All"
-		await this.page.waitFor( 2000 );
+		await this.page.waitForTimeout( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-intent-primary' );
 
-		await this.page.waitFor( 60000 ); // This can take quite some time on slower systems
+		await this.page.waitForTimeout( 60000 ); // This can take quite some time on slower systems
 		// Network idle is a hack to wait until we donwloaded stuff. I don't think it works though.
 		await this.page.goto( 'https://news.ycombinator.com/', { waitUntil: 'networkidle2' } );
 		return;
 	}
 	async close() {
 		if ( this.browser ) {
-			await this.page.waitFor( 1000 );
+			await this.page.waitForTimeout( 1000 );
 			await this.browser.close();
 			this.browser = null;
 		}

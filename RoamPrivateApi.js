@@ -23,6 +23,49 @@ class RoamPrivateApi {
 		}
 	}
 
+	async runQuery( query ) {
+		return await this.page.evaluate( ( query ) => {
+			if ( ! window.roamAlphaAPI ) {
+				return Promise.reject( 'No Roam API detected' );
+			}
+			const result = window.roamAlphaAPI.q( query );
+			console.log( result );
+			return Promise.resolve( result );
+		}, query );
+	}
+
+	async deleteBlocksMatchingQuery( query, limit ) {
+		if ( ! limit ) {
+			limit = 1;
+		}
+		return await this.page.evaluate( ( query, limit ) => {
+			if ( ! window.roamAlphaAPI ) {
+				return Promise.reject( 'No Roam API detected' );
+			}
+			const result = window.roamAlphaAPI.q( query );
+			console.log( result );
+			if ( result.length > 100 ) {
+				return Promise.reject( 'Too many results. Is your query ok?' );
+
+			}
+			const limited = result.slice( 0, limit );
+			limited.forEach( ( block ) => {
+				const id = block[0];
+				console.log( 'DELETING', id );
+				window.roamAlphaAPI.deleteBlock( { block: { uid: id } } );
+			} );
+			return Promise.resolve( limited );
+		}, query, limit );
+	}
+	
+	getQueryToFindBlocksOnPage( text, pageTitle ) {
+		return `[:find ?uid
+			:where [?b :block/string "${text}"]
+				   [?b :block/uid  ?uid]
+				   [?b :block/page ?p]
+				   [?p :node/title "${pageTitle}"]]`;
+	}
+
 	async getExportData() {
 		// Mostly for testing purposes when we want to use a preexisting download.
 		if ( ! this.options.nodownload ) {

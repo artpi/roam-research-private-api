@@ -3,7 +3,7 @@ const fs = require( 'fs' );
 const os = require( 'os' );
 const unzip = require( 'node-unzip-2' );
 const { isString } = require( 'util' );
-
+const moment = require( 'moment' );
 class RoamPrivateApi {
 	options;
 	browser;
@@ -66,6 +66,22 @@ class RoamPrivateApi {
 				   [?p :node/title "${pageTitle}"]]`;
 	}
 
+	async removeImportBlockFromDailyNote() {
+		await this.deleteBlocksMatchingQuery(
+			this.getQueryToFindBlocksOnPage(
+				'Import',
+				this.dailyNoteTitle()
+			),
+			1
+		);
+		await this.page.waitForTimeout( 1000 );
+		return;
+	}
+
+	dailyNoteTitle() {
+		return moment( new Date() ).format( 'MMMM Do, YYYY' );
+	}
+
 	async getExportData() {
 		// Mostly for testing purposes when we want to use a preexisting download.
 		if ( ! this.options.nodownload ) {
@@ -123,6 +139,7 @@ class RoamPrivateApi {
 		await this.page.waitForSelector( '.bp3-dialog .bp3-intent-primary' );
 		await this.page.click( '.bp3-dialog .bp3-intent-primary' );
 		await this.page.waitForTimeout( 3000 );
+		await this.removeImportBlockFromDailyNote();
 		return;
 	}
 

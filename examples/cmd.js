@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const yargs = require( 'yargs' );
 const fs = require( 'fs' );
+const fetch = require( 'node-fetch' );
 
 const argv = yargs
 	.option( 'graph', {
@@ -89,8 +90,8 @@ const argv = yargs
 		}
 	)
 	.command(
-		'download <dir>',
-		'Export your Roam database to a selected directory.',
+		'export <dir> [exporturl]',
+		'Export your Roam database to a selected directory. If URL is provided, then the concent will be sent by POST request to the specified URL.',
 		() => {},
 		( argv ) => {
 			const RoamPrivateApi = require( '../' );
@@ -98,7 +99,20 @@ const argv = yargs
 				headless: ! argv.debug,
 				folder: argv['dir']
 			} );
-			api.getExportData( argv['removezip'] ).then( data => console.log( 'Downloaded' ) );
+			let promises = api.getExportData( argv['removezip'] );
+			promises.then( data => console.log( 'Downloaded' ) );
+			if ( argv['exporturl'] ) {
+				promises.then( data => fetch( argv['exporturl'], {
+					method: 'post',
+					body: JSON.stringify( {
+						graphContent: data,
+						graphName: api.graph
+					} ),
+					headers: {'Content-Type': 'application/json'}
+				} ) )
+				.catch( err => console.log( err ) )
+				.then( () => console.log( "Uploaded to export url." ) )
+			}
 		}
 	)
 	.help()

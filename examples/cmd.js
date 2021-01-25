@@ -21,11 +21,18 @@ const argv = yargs
 	.option( 'debug', {
 		description: 'enable debug mode',
 		type: 'boolean',
+		default: false,
 	} )
 	.option( 'stdin', {
 		alias: 'i',
 		description: 'Read from STDIN',
 		type: 'boolean',
+		default: false,
+	} )
+	.option( 'removezip', {
+		description: 'If downloading the Roam Graph, should the timestamp zip file be removed after downloading?',
+		type: 'boolean',
+		default: true,
 	} )
 	.command(
 		'query [query]',
@@ -79,6 +86,19 @@ const argv = yargs
                 console.log( JSON.stringify( result, null, 4 ) );
                 api.close();
             } );
+		}
+	)
+	.command(
+		'download <dir>',
+		'Export your Roam database to a selected directory.',
+		() => {},
+		( argv ) => {
+			const RoamPrivateApi = require( '../' );
+			const api = new RoamPrivateApi( argv.graph, argv.email, argv.password, {
+				headless: ! argv.debug,
+				folder: argv['dir']
+			} );
+			api.getExportData( argv['removezip'] ).then( data => console.log( 'Downloaded' ) );
 		}
 	)
 	.help()

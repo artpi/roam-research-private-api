@@ -1,5 +1,6 @@
 const puppeteer = require( 'puppeteer' );
 const fs = require( 'fs' );
+const path = require('path');
 const os = require( 'os' );
 const unzip = require( 'node-unzip-2' );
 const { isString } = require( 'util' );
@@ -17,14 +18,15 @@ class RoamPrivateApi {
 	pass;
 
 	constructor( db, login, pass, options = { headless: true, folder: null, nodownload: false } ) {
-		this.db = db;
-		this.login = login;
-		this.pass = pass;
-		this.options = options;
 		// If you dont pass folder option, we will use the system tmp directory.
 		if ( ! options.folder ) {
 			options.folder = os.tmpdir();
 		}
+		options.folder = fs.realpathSync( options.folder );
+		this.db = db;
+		this.login = login;
+		this.pass = pass;
+		this.options = options;
 	}
 
 	/**
@@ -132,8 +134,9 @@ class RoamPrivateApi {
 
 	/**
 	 * Export your Roam database and return the JSON data.
+	 * @param {boolean} autoremove - should the zip file be removed after extracting?
 	 */
-	async getExportData() {
+	async getExportData( autoremove ) {
 		// Mostly for testing purposes when we want to use a preexisting download.
 		if ( ! this.options.nodownload ) {
 			await this.logIn();
@@ -141,6 +144,9 @@ class RoamPrivateApi {
 		}
 		const latestExport = this.getLatestFile( this.options.folder );
 		const content = await this.getContentsOfRepo( this.options.folder, latestExport );
+		if ( autoremove ) {
+			fs.unlinkSync( latestExport );
+		}
 		await this.close();
 		return content;
 	}
@@ -176,7 +182,7 @@ class RoamPrivateApi {
 	 * @param {array} items 
 	 */
 	async import( items = [] ) {
-		const fileName = this.options.folder + 'roam-research-private-api-sync.json';
+		const fileName = path.resolve( this.options.folder, 'roam-research-private-api-sync.json' );
 		fs.writeFileSync( fileName, JSON.stringify( items ) );
 		await this.logIn();
 		await this.page.waitForSelector( '.bp3-icon-more' );
@@ -300,16 +306,16 @@ class RoamPrivateApi {
 		const orderReccentFiles = ( dir ) =>
 			fs
 				.readdirSync( dir )
-				.filter( ( f ) => fs.lstatSync( dir + f ) && fs.lstatSync( dir + f ).isFile() )
+				.filter( ( f ) => fs.lstatSync( path.resolve( dir, f ) ) && fs.lstatSync( path.resolve( dir, f ) ).isFile() )
 				.filter( ( f ) => f.indexOf( 'Roam-Export' ) !== -1 )
-				.map( ( file ) => ( { file, mtime: fs.lstatSync( dir + file ).mtime } ) )
+				.map( ( file ) => ( { file, mtime: fs.lstatSync( path.resolve( dir, file ) ).mtime } ) )
 				.sort( ( a, b ) => b.mtime.getTime() - a.mtime.getTime() );
 
 		const getMostRecentFile = ( dir ) => {
 			const files = orderReccentFiles( dir );
 			return files.length ? files[ 0 ] : undefined;
 		};
-		return dir + getMostRecentFile( dir ).file;
+		return path.resolve( dir, getMostRecentFile( dir ).file );
 	}
 
 	/**
@@ -325,7 +331,7 @@ class RoamPrivateApi {
 				var type = entry.type; // 'Directory' or 'File'
 				var size = entry.size;
 				if ( fileName.indexOf( '.json' ) != -1 ) {
-					entry.pipe( fs.createWriteStream( dir + 'db.json' ) );
+					entry.pipe( fs.createWriteStream( path.resolve( dir, 'db.json' ) ) );
 				} else {
 					entry.autodrain();
 				}
@@ -333,7 +339,7 @@ class RoamPrivateApi {
 			// Timeouts are here so that the system locks can be removed - takes time on some systems.
 			stream.on( 'close', function () {
 				setTimeout( function() {
-					fs.readFile( dir + 'db.json', 'utf8', function ( err, data ) {
+					fs.readFile( path.resolve( dir, 'db.json' ), 'utf8', function ( err, data ) {
 						if ( err ) {
 							reject( err );
 						} else {

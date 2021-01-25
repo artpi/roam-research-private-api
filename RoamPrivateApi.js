@@ -46,6 +46,30 @@ class RoamPrivateApi {
 	}
 
 	/**
+	 * Create a block as a child of block.
+	 * @param {string} text 
+	 * @param {uid} uid - parent UID where block has to be inserted.
+	 */
+	async createBlock( text, uid ) {
+		const result = await this.page.evaluate( ( text, uid ) => {
+			if ( ! window.roamAlphaAPI ) {
+				return Promise.reject( 'No Roam API detected' );
+			}
+			const result = window.roamAlphaAPI.createBlock(
+				{"location": 
+					{"parent-uid": uid, 
+					 "order": 0}, 
+				 "block": 
+					{"string": text}})
+			console.log( result );
+			return Promise.resolve( result );
+		}, text, uid );
+		// Let's give time to sync.
+		await this.page.waitForTimeout( 1000 );
+		return result;
+	}
+
+	/**
 	 * Delete blocks matching the query. Hass some protections, but
 	 * THIS IS VERY UNSAFE. DO NOT USE THIS IF YOU ARE NOT 100% SURE WHAT YOU ARE DOING
 	 * @param {string} query - datalog query to find blocks to delete. Has to return block uid.
@@ -121,6 +145,7 @@ class RoamPrivateApi {
 			),
 			1
 		);
+		//Lets give time to sync
 		await this.page.waitForTimeout( 1000 );
 		return;
 	}
@@ -130,6 +155,12 @@ class RoamPrivateApi {
 	 */
 	dailyNoteTitle() {
 		return moment( new Date() ).format( 'MMMM Do, YYYY' );
+	}
+	/**
+	 * Return page uid for the current daily note.
+	 */
+	dailyNoteUid() {
+		return moment( new Date() ).format( 'MM-DD-YYYY' );
 	}
 
 	/**

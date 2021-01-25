@@ -90,6 +90,37 @@ const argv = yargs
 		}
 	)
 	.command(
+		'create [text] [parentuid]',
+		'Append a block to a block with a selected uid. If no uid is provided, block will be appended to the daily page. You can also pass data from stdin.',
+		() => {},
+		( argv ) => {
+			let input = '';
+			if ( argv.stdin ) {
+				input = fs.readFileSync( 0, 'utf-8' );
+			} else {
+				input = argv['text'];
+			}
+
+			if ( ! input || input.length < 3 ) {
+				console.warn( 'You have to provide content at least 3 chars long' );
+				return;
+			}
+
+			const RoamPrivateApi = require( '../' );
+			const api = new RoamPrivateApi( argv.graph, argv.email, argv.password, {
+				headless: ! argv.debug,
+			} );
+
+			if ( ! argv['parentuid'] ) {
+				argv['parentuid'] = api.dailyNoteUid();
+			}
+
+			api.logIn()
+            .then( () => api.createBlock( input, argv['parentuid'] ) )
+            .then( result => api.close() );
+		}
+	)
+	.command(
 		'export <dir> [exporturl]',
 		'Export your Roam database to a selected directory. If URL is provided, then the concent will be sent by POST request to the specified URL.',
 		() => {},

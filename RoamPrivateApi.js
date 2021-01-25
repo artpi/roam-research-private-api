@@ -59,11 +59,25 @@ class RoamPrivateApi {
 	}
 	
 	getQueryToFindBlocksOnPage( text, pageTitle ) {
+		text = text.replace( '"', '\"' );
+		pageTitle = pageTitle.replace( '"', '\"' );
+
 		return `[:find ?uid
 			:where [?b :block/string "${text}"]
 				   [?b :block/uid  ?uid]
 				   [?b :block/page ?p]
 				   [?p :node/title "${pageTitle}"]]`;
+	}
+
+	getQueryToFindBlocks( text ) {
+		text = text.replace( '"', '\"' );
+		return `[:find ?uid ?string ?title :where
+			[?b :block/string ?string]
+			[(clojure.string/includes? ?string "${text}")]
+			[?b :block/uid  ?uid]
+			[?b :block/page ?p]
+			[?p :node/title ?title]
+		]`;
 	}
 
 	async removeImportBlockFromDailyNote() {

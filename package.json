@@ -1,6 +1,6 @@
 {
 	"name": "roam-research-private-api",
-	"version": "0.1.10",
+	"version": "1.0",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"main": "RoamPrivateApi.js",
 	"repository": {
@@ -13,7 +13,7 @@
 		"reformat-files": "./node_modules/.bin/prettier --ignore-path .eslintignore --write \"**/*.{js,jsx,json,ts,tsx}\""
 	},
 	"bin": {
-		"roam-quick": "examples/quick_capture.js"
+		"roam-api": "examples/cmd.js"
 	},
 	"author": "Artur Piszek ( piszek.com )",
 	"license": "MIT",
@@ -21,6 +21,7 @@
 		"enml-js": "^0.1.3",
 		"evernote": "^2.0.5",
 		"moment": "^2.27.0",
+		"node-fetch": "^2.6.1",
 		"node-unzip-2": "^0.2.8",
 		"puppeteer": "^5.5.0",
 		"yargs": "^15.4.1"

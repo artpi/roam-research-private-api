@@ -4,6 +4,10 @@ const os = require( 'os' );
 const unzip = require( 'node-unzip-2' );
 const { isString } = require( 'util' );
 const moment = require( 'moment' );
+
+/**
+ * This class represents wraps Puppeteer and exposes a few methods useful in manipulating Roam Research.
+ */
 class RoamPrivateApi {
 	options;
 	browser;
@@ -23,6 +27,11 @@ class RoamPrivateApi {
 		}
 	}
 
+	/**
+	 * Run a query on the new Roam Alpha API object.
+	 * More about the query syntax: https://www.zsolt.blog/2021/01/Roam-Data-Structure-Query.html
+	 * @param {string} query - datalog query.
+	 */
 	async runQuery( query ) {
 		return await this.page.evaluate( ( query ) => {
 			if ( ! window.roamAlphaAPI ) {
@@ -34,6 +43,12 @@ class RoamPrivateApi {
 		}, query );
 	}
 
+	/**
+	 * Delete blocks matching the query. Hass some protections, but
+	 * THIS IS VERY UNSAFE. DO NOT USE THIS IF YOU ARE NOT 100% SURE WHAT YOU ARE DOING
+	 * @param {string} query - datalog query to find blocks to delete. Has to return block uid.
+	 * @param {int} limit - limit deleting to this many blocks. Default is 1.
+	 */
 	async deleteBlocksMatchingQuery( query, limit ) {
 		if ( ! limit ) {
 			limit = 1;
@@ -57,7 +72,13 @@ class RoamPrivateApi {
 			return Promise.resolve( limited );
 		}, query, limit );
 	}
-	
+
+	/**
+	 * Returns a query to find blocks with exact text on the page with title.
+	 * Useful with conjuction with deleteBlocksMatchingQuery,
+	 * @param {string} text - Exact text in the block.
+	 * @param {*} pageTitle - page title to find the blocks in.
+	 */
 	getQueryToFindBlocksOnPage( text, pageTitle ) {
 		text = text.replace( '"', '\"' );
 		pageTitle = pageTitle.replace( '"', '\"' );
@@ -69,6 +90,11 @@ class RoamPrivateApi {
 				   [?p :node/title "${pageTitle}"]]`;
 	}
 
+	/**
+	 * Returns datalog query to find all blocks containing the text.
+	 * Returns results in format [[ blockUid, text, pageTitle ]].
+	 * @param {string} text - text to search.
+	 */
 	getQueryToFindBlocks( text ) {
 		text = text.replace( '"', '\"' );
 		return `[:find ?uid ?string ?title :where
@@ -80,6 +106,11 @@ class RoamPrivateApi {
 		]`;
 	}
 
+	/**
+	 * When importing in Roam, import leaves an "Import" block.
+	 * This removes that from your daily page.
+	 * THIS IS UNSAFE since it deletes blocks.
+	 */
 	async removeImportBlockFromDailyNote() {
 		await this.deleteBlocksMatchingQuery(
 			this.getQueryToFindBlocksOnPage(
@@ -92,10 +123,16 @@ class RoamPrivateApi {
 		return;
 	}
 
+	/**
+	 * Return page title for the current daily note.
+	 */
 	dailyNoteTitle() {
 		return moment( new Date() ).format( 'MMMM Do, YYYY' );
 	}
 
+	/**
+	 * Export your Roam database and return the JSON data.
+	 */
 	async getExportData() {
 		// Mostly for testing purposes when we want to use a preexisting download.
 		if ( ! this.options.nodownload ) {
@@ -133,6 +170,11 @@ class RoamPrivateApi {
 		return;
 	}
 
+	/**
+	 * Import blocks to your Roam graph
+	 * @see examples/import.js.
+	 * @param {array} items 
+	 */
 	async import( items = [] ) {
 		const fileName = this.options.folder + 'roam-research-private-api-sync.json';
 		fs.writeFileSync( fileName, JSON.stringify( items ) );
@@ -157,6 +199,10 @@ class RoamPrivateApi {
 		return;
 	}
 
+	/**
+	 * Inserts text to your quickcapture.
+	 * @param {string} text 
+	 */
 	async quickCapture( text = [] ) {
 		await this.logIn();
 		const page = await this.browser.newPage();
@@ -178,6 +224,11 @@ class RoamPrivateApi {
 		await this.close();
 		return;
 	}
+
+	/**
+	 * Click item in the side-menu. This is mostly internal.
+	 * @param {string} title 
+	 */
 	async clickMenuItem( title ) {
 		await this.page.click( '.bp3-icon-more' );
 		// This should contain "Export All"
@@ -193,6 +244,11 @@ class RoamPrivateApi {
 			} );
 		}, title );
 	}
+
+	/**
+	 * Download Roam export to a selected folder.
+	 * @param {string} folder 
+	 */
 	async downloadExport( folder ) {
 		await this.page._client.send( 'Page.setDownloadBehavior', {
 			behavior: 'allow',
@@ -223,6 +279,10 @@ class RoamPrivateApi {
 		await this.page.goto( 'https://news.ycombinator.com/', { waitUntil: 'networkidle2' } );
 		return;
 	}
+
+	/**
+	 * Close the fake browser session.
+	 */
 	async close() {
 		if ( this.browser ) {
 			await this.page.waitForTimeout( 1000 );
@@ -232,6 +292,10 @@ class RoamPrivateApi {
 		return;
 	}
 
+	/**
+	 * Get the freshest file in the directory, for finding the newest export.
+	 * @param {string} dir 
+	 */
 	getLatestFile( dir ) {
 		const orderReccentFiles = ( dir ) =>
 			fs
@@ -248,6 +312,11 @@ class RoamPrivateApi {
 		return dir + getMostRecentFile( dir ).file;
 	}
 
+	/**
+	 * Unzip the export and get the content.
+	 * @param {string} dir 
+	 * @param {string} file 
+	 */
 	getContentsOfRepo( dir, file ) {
 		return new Promise( ( resolve, reject ) => {
 			const stream = fs.createReadStream( file ).pipe( unzip.Parse() );

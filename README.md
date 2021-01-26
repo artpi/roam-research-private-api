@@ -1,18 +1,11 @@
-# Roam Private API
+## Roam Private API
 
-This library is a helper to automate your Roam Research adventures.
-
+This project exposes command line tool (`roam-api`) and a `node` library to connect Roam Research to your other software. You can use it in bash scripts, Github actions, or as a dependency of your project.
 ## How does it work?
 
-It logs into chrome and performs actions on front-end, just as you would manually. No need to install chrome, this library comes with one. It uses your login and password, so **this won't work if you are using Google login**.
-
-## Examples
-
-- [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js)
-- [Import arbitrary data into any note](https://github.com/artpi/roam-research-private-api/blob/master/examples/import-data.js)
-- [Send note to Roam using the Quick Capture feature](https://github.com/artpi/roam-research-private-api/blob/master/examples/quick_capture.js)
-
-
+It looks like Roam is not providing a REST API any time soon. If you want to bridge Roam with your other software, you can do so from within Roam (with JavaScript), but that has limited number of use cases.
+Without a REST API, this project launches an invisible browser and performs automated actions, just as you would manually. No need to install chrome, this library comes with one. It uses your login and password, so **this won't work if you are using Google login**.
+It wraps around import/export functionality and actions exposed via `roamAlphaApi`.
 ## Command line tool `roam-api`
 
 This package exposes a `roam-api` tool in your system. You can use it to automate Roam and bridge other systems with your Roam graph.
@@ -63,6 +56,15 @@ Check out [this fantastic article](https://www.zsolt.blog/2021/01/Roam-Data-Stru
 roam-api create "This will be prepended to my daily page"
 ```
 
+## Library to use in your project.
 
+As mentioned, this is also a library that you can use within your project. Here are examples on how to do so:
 
-This is very much work in progress! Pull requests welcome :)
+- [All the functionality in the roam-api tool](https://github.com/artpi/roam-research-private-api/blob/master/examples/cmd.js)
+- [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js)
+- [Import arbitrary data into any note](https://github.com/artpi/roam-research-private-api/blob/master/examples/import-data.js)
+- [Send note to Roam using the Quick Capture feature](https://github.com/artpi/roam-research-private-api/blob/master/examples/quick_capture.js)
+
+###
+
+Pull requests welcome and I take no responsibility in case this messes up your Roam Graph :).

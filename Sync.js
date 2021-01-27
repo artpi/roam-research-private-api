@@ -2,9 +2,10 @@ class RoamSyncAdapter {
 	credentials;
 	graphName = '';
 	pages = [];
-	titleMapping = {};
+	titleMapping;
 
 	constructor( data, graphName ) {
+		this.titleMapping = new Map();
 		this.credentials = data;
 		this.graphName = graphName;
 	}
@@ -50,6 +51,7 @@ class RoamSyncAdapter {
 	processJSON( newData ) {
 		this.pages = newData.map( ( page ) => {
 			const newPage = {
+				uid: page.uid,
 				title: page.title,
 				updateTime: page[ 'edit-time' ],
 				content: '',
@@ -58,14 +60,9 @@ class RoamSyncAdapter {
 				newPage.content = page.string;
 			}
 			if ( page.children && page.children[ 0 ] ) {
-				newPage.uid = page.children[ 0 ].uid;
 				newPage.content += this.flattenRoamDB( page, 0, page.title );
 			}
-			// It will be set if previously saved. Otherwise, we have to 'empty it';
-			if ( ! this.titleMapping[ page.title ] ) {
-				this.titleMapping[ page.title ] = {};
-			}
-			Object.assign( this.titleMapping[ page.title ], newPage );
+			this.titleMapping.set( page.title, newPage );
 			return newPage;
 		} );
 		return this.sync( this.pages );

@@ -26,8 +26,13 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		string = string.replace( /\*\*([^*]+)\*\*/g, '<b>$1</b>' );
 		string = string.replace( /__([^_]+)__/g, '<i>$1</i>' );
 		string = string.replace( /#?\[\[([^\]]+)\]\]/g, ( match, contents ) => {
-			if ( this.mapping.get( contents ) ) {
-				const guid = this.mapping.get( contents );
+			const targetPage = this.titleMapping.get( contents );
+			if (
+				targetPage &&
+				targetPage.uid &&
+				this.mapping.get( targetPage.uid )
+			) {
+				const guid = this.mapping.get( targetPage.uid ).guid;
 				const url = this.getNoteUrl( guid );
 				backlinks.push( contents );
 				return `<a href="${ url }">${ contents }</a>`;
@@ -64,32 +69,40 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		return nBody;
 	}
 
-	makeNote( noteTitle, noteBody, url ) {
-		// if( ! this.mapping.get( noteTitle ) ) {
-		// 	console.log(noteTitle);
-		// }
-		// return Promise.resolve();
+	makeNote( noteTitle, noteBody, url, uid ) {
 		// Create note object
-		let note;
-		if ( this.mapping.get( noteTitle ) ) {
-			// console.log( '[[' + noteTitle + ']] should already exist' );
-			note = this.NoteStore.getNote( this.mapping.get( noteTitle ), true, false, false, false );
-			note.catch( ( err ) => {
-				console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
-			} );
-			// note.catch( err => new Promise( ( resolve, reject ) => setTimeout( () => {
-			// 	console.log( 'Took to long, retrying ' + noteTitle );
-			// 	resolve( this.NoteStore.getNote( guid, true, false, false, false ) );
-			// } ) ) );
-		} else {
-			note = Promise.resolve( new Evernote.Types.Note() );
-		}
-		return note.then( ( ourNote ) => {
-			// Build body of note
+		var nBody = this.wrapNote( noteBody );
+		let foundNote;
 
-			var nBody = this.wrapNote( noteBody );
+		if ( this.mapping.get( uid ) ) {
+			foundNote = Promise.resolve( { 
+				totalNotes: 1,
+				notes: [ this.mapping.get( uid ) ]
+			} );
+		} else {
+			foundNote = this.findPreviousNote( url );
+		}
+		
+		foundNote.then( notes => {
+			if ( ! notes.totalNotes ) {
+				return Promise.resolve( new Evernote.Types.Note() );
+			}
+			if ( notes.notes[0].contentLength === nBody.length ) {
+				console.log( '[[' + noteTitle + ']]: content length has not changed, skipping' );
+				return Promise.resolve( false );
+			}
+			return this.NoteStore.getNote( notes.notes[0].guid, true, false, false, false ).catch( ( err ) => {
+				console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
+				return Promise.resolve( false );
+			} );
+		} )
+		.then( ( ourNote ) => {
+			if ( ! ourNote ) {
+				return Promise.resolve( false );
+			}
+			// Build body of note
 			if ( ourNote.content && ourNote.content === nBody ) {
-				// console.log( '[[' + noteTitle + ']]: has not changed, skipping' );
+				console.log( '[[' + noteTitle + ']]: has not changed, skipping' );
 				return Promise.resolve( ourNote );
 			}
 			ourNote.content = nBody;
@@ -103,6 +116,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 
 			if ( ourNote.guid ) {
 				console.log( '[[' + noteTitle + ']]: updating' );
+				ourNote.updated = Date.now();
 				return this.NoteStore.updateNote( ourNote );
 			} else {
 				// parentNotebook is optional; if omitted, default notebook is used
@@ -111,7 +125,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 				}
 				console.log( '[[' + noteTitle + ']] Creating new note ' );
 				return this.NoteStore.createNote( ourNote ).then( ( note ) => {
-					this.mapping.set( noteTitle, note.guid );
+					this.mapping.set( uid, note );
 					return Promise.resolve( note );
 				} );
 			}
@@ -128,7 +142,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					this.notebookGuid = filtered[ 0 ].guid;
 					resolve( this.notebookGuid );
 				} else {
-					console.log( 'You have to have a notebook named "Roam"' );
+					console.warn( 'You have to have a notebook named "Roam"' );
 					reject( 'You have to have a notebook named "Roam"' );
 				}
 			} );
@@ -195,25 +209,44 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		);
 	}
 
+	findPreviousNote( url ) {
+		const filter = new Evernote.NoteStore.NoteFilter();
+		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
+		spec.includeContentLength = true;
+		spec.includeTitle = true;
+		filter.words = `sourceUrl:"${url}" contentClass:piszek.roam`;
+		return this.NoteStore.findNotesMetadata( filter, 0, 1, spec );
+	}
+
 	loadPreviousNotes() {
 		let duplicates = 0;
 		const filter = new Evernote.NoteStore.NoteFilter();
 		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
 		spec.includeTitle = true;
+		spec.includeDeleted = false;
+		spec.includeAttributes = true;
 		filter.words = 'contentClass:piszek.roam';
 		const batchCount = 100;
 
 		const loadMoreNotes = ( result ) => {
 			if ( result.notes ) {
 				result.notes.forEach( ( note ) => {
-					const title = this.htmlEntitiesDecode( note.title );
-					if ( ! this.mapping.get( title ) ) {
-						this.mapping.set( title, note.guid );
-					} else if ( this.mapping.get( title ) !== note.guid ) {
+					if ( ! note.attributes.sourceURL ) {
+						return;
+					}
+					const match = note.attributes.sourceURL.match( /https:\/\/roamresearch\.com\/\#\/app\/[a-z]+\/page\/([a-zA-Z0-9_-]+)/);
+					if ( ! match ) {
+						return;
+					}
+
+					const uid = match[1];
+					if ( ! this.mapping.get( uid ) ) {
+						this.mapping.set( uid, note );
+					} else if ( this.mapping.get( uid ).guid !== note.guid ) {
 						console.log(
-							'[[' + title + ']]',
+							'[[' + this.mapping.get( uid ).title + ']]',
 							'Note is a duplicate ',
-							this.getNoteUrl( this.mapping.get( title ) ),
+							this.getNoteUrl( this.mapping.get( uid ).guid ),
 							this.getNoteUrl( note.guid )
 						);
 						// this.NoteStore.deleteNote( note.guid );
@@ -228,7 +261,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					spec
 				).then( loadMoreNotes );
 			} else {
-				console.log( batchCount );
+				// console.log( batchCount );
 				return Promise.resolve( this.mapping );
 			}
 		};
@@ -253,6 +286,8 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		this.mapping = new Map( prevData );
 		this.EvernoteClient = new Evernote.Client( this.credentials );
 		this.NoteStore = this.EvernoteClient.getNoteStore();
+		const loadNotesPromise = this.loadPreviousNotes();
+		loadNotesPromise.then( () => console.log( 'Loaded previous notes: ', this.mapping.size ) );
 
 		return Promise.all( [
 			new Promise( ( resolve, reject ) => {
@@ -264,7 +299,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 					} );
 			} ),
 			this.findNotebook().catch( ( err ) => console.log( 'Cannot find notebook Roam:', err ) ),
-			this.loadPreviousNotes(),
+			loadNotesPromise,
 		] );
 	}
 
@@ -284,17 +319,23 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		if ( page.uid ) {
 			url = `https://roamresearch.com/#/app/${this.graphName}/page/` + page.uid;
 		} else {
-			url = 'https://roamresearch.com/#/app/' + this.graphName;
+			console.warn( "Page must have UIDs and this one does not. Using title as a backup." );
+			url = page.title;
 		}
 		let newContent = page.content;
 		if ( this.backlinks[ page.title ] ) {
 			const list = this.backlinks[ page.title ]
 				.map( ( target ) => {
 					let reference = '[[' + target.target + ']]';
-					if ( this.mapping.get( target.target ) ) {
+					const targetPage = this.titleMapping.get( target.target );
+					if (
+						targetPage &&
+						targetPage.uid &&
+						this.mapping.get( targetPage.uid )
+					) {
 						reference =
 							'<a href="' +
-							this.getNoteUrl( this.mapping.get( target.target ) ) +
+							this.getNoteUrl( this.mapping.get( targetPage.uid ).guid ) +
 							'">' +
 							target.target +
 							'</a>';
@@ -307,7 +348,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			newContent = page.content + backlinks;
 		}
 
-		return this.makeNote( page.title, newContent, url );
+		return this.makeNote( page.title, newContent, url, page.uid );
 	}
 }
 

@@ -137,7 +137,7 @@ const argv = yargs
 					method: 'post',
 					body: JSON.stringify( {
 						graphContent: data,
-						graphName: api.graph
+						graphName: api.db
 					} ),
 					headers: {'Content-Type': 'application/json'}
 				} ) )

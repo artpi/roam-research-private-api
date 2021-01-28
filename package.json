@@ -1,7 +1,9 @@
 {
 	"name": "roam-research-private-api",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
+	"homepage": "https://deliber.at/roam/roam-api/",
+	"keywords": [ "roam", "roam-research", "evernote", "puppeteer" ],
 	"main": "RoamPrivateApi.js",
 	"repository": {
 		"type": "git",
@@ -13,7 +15,8 @@
 		"reformat-files": "./node_modules/.bin/prettier --ignore-path .eslintignore --write \"**/*.{js,jsx,json,ts,tsx}\""
 	},
 	"bin": {
-		"roam-api": "examples/cmd.js"
+		"roam-api": "examples/cmd.js",
+		"roam-evernote-sync": "examples/sync_evernote.js"
 	},
 	"author": "Artur Piszek ( piszek.com )",
 	"license": "MIT",

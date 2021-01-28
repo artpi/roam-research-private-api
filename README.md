@@ -61,7 +61,7 @@ roam-api create "This will be prepended to my daily page"
 As mentioned, this is also a library that you can use within your project. Here are examples on how to do so:
 
 - [All the functionality in the roam-api tool](https://github.com/artpi/roam-research-private-api/blob/master/examples/cmd.js)
-- [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js)
+- [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js) - you can also use command-line utility `roam-evernote-sync`.
 - [Import arbitrary data into any note](https://github.com/artpi/roam-research-private-api/blob/master/examples/import-data.js)
 - [Send note to Roam using the Quick Capture feature](https://github.com/artpi/roam-research-private-api/blob/master/examples/quick_capture.js)
 

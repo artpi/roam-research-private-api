@@ -1,4 +1,17 @@
 #!/usr/bin/env node
+const helpText=`
+The command exposed here (roam-evernote-sync sync) will sync your Roam Graph to your Evernote database.
+Depending on a few configuration options, it will:
+1. Download payload from external URL to import INTO roam (useful for connecting with other services)
+2. Take all notes in your default Evernote notebook and import them into your daily note. They will be marked with 'RoamImported' tag to prevent doing so multiple times
+3. Export all notes from your Roam and import them to "Roam" notebook in your Evernote account
+4. The backlinks will be kept intact, notes will be updated when possible
+5. After all that is done, DB will be pushed to external URL ('exporturl') if provided to provide connection for https://deliber.at/roam/wp-roam-block or similar projects
+
+- 'dir' is a directory where database will be downloaded.
+- 'mappingcachefile' is a JSON file that provides a cache for Roam UID <-> Evernote GUID mapping. This is used to relieve Evernote API a bit
+`;
+
 const yargs = require( 'yargs' );
 const fetch = require( 'node-fetch' );
 var fs = require( 'fs' ).promises;
@@ -62,7 +75,7 @@ const argv = yargs
 	} )
 	.command(
 		'sync <dir> <mappingcachefile> [exporturl]',
-		'Sync Roam to Evernote, with several additional actions.',
+		helpText,
 		() => {},
 		( argv ) => {
 

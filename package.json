@@ -3,7 +3,12 @@
 	"version": "0.9.1",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"homepage": "https://deliber.at/roam/roam-api/",
-	"keywords": [ "roam", "roam-research", "evernote", "puppeteer" ],
+	"keywords": [
+		"roam",
+		"roam-research",
+		"evernote",
+		"puppeteer"
+	],
 	"main": "RoamPrivateApi.js",
 	"repository": {
 		"type": "git",

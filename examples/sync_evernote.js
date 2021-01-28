@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const yargs = require( 'yargs' );
 const fetch = require( 'node-fetch' );
-const { boolean } = require('yargs');
+var fs = require( 'fs' ).promises;
 
 const argv = yargs
 	.option( 'graph', {
@@ -61,10 +61,11 @@ const argv = yargs
 		default: true,
 	} )
 	.command(
-		'sync <dir> [exporturl]',
+		'sync <dir> <mappingcachefile> [exporturl]',
 		'Sync Roam to Evernote, with several additional actions.',
 		() => {},
 		( argv ) => {
+
 			const RoamPrivateApi = require( '../' );
 			const EvernoteSyncAdapter = require( '../EvernoteSync' );
 			const options = {
@@ -90,11 +91,21 @@ const argv = yargs
 				importIntoRoam.push( private_api );
 			}
 
+			let evernote_to_roam;
+			if ( argv.mappingcachefile ) {
+				// There is a mapping file.
+				evernote_to_roam = fs.readFile( argv.mappingcachefile )
+				.then( ( data ) => e.init( JSON.parse( data ) ) )
+				.catch( ( err ) => e.init( null ) )
+			} else {
+				evernote_to_roam = e.init( null );
+			}
+
 			// This finds notes IN Evernote to import into Roam:
-			const evernote_to_roam = e.init( null )
-			.then( () => e.getNotesToImport() )
-			.then( payload => Promise.resolve( e.getRoamPayload( payload ) ) );
-			importIntoRoam.push( evernote_to_roam );
+			evernote_to_roam
+				.then( () => e.getNotesToImport() )
+				.then( payload => Promise.resolve( e.getRoamPayload( payload ) ) );
+				importIntoRoam.push( evernote_to_roam );
 
 			// Let's start the flow with Roam:
 			const roamdata = Promise.all( importIntoRoam )
@@ -108,6 +119,11 @@ const argv = yargs
 				} )
 				.then( () => e.cleanupImportNotes() )
 				.then( () => api.getExportData( ! argv.nodownload && argv['removezip'] ) ); // Removing zip is only possible if we downloaded it.
+
+				// We are saving the intermediate step of mapping just in case.
+				if ( argv.mappingcachefile ) {
+					roamdata.then( data => fs.writeFile( argv.mappingcachefile, JSON.stringify( [ ...e.mapping ], null, 2 ), 'utf8' ) );
+				}
 
 				// This will push Roam graph to the URL of your choice - can be WordPress
 				if ( argv.exporturl ) {
@@ -123,9 +139,12 @@ const argv = yargs
 				}
 
 				// This is the actual moment where we sync to Evernote:
-				roamdata.then( ( data ) => e.processJSON( data ) )
-				.then( () => console.log( 'success' ) );
-
+				let finish = roamdata.then( ( data ) => e.processJSON( data ) );
+				// We are saving the final step of mapping just in case.
+				if ( argv.mappingcachefile ) {
+					finish = finish.then( data => fs.writeFile( argv.mappingcachefile, JSON.stringify( [ ...e.mapping ], null, 2 ), 'utf8' ) );
+				}
+				finish.then( () => console.log( 'success' ) );
 		}
 	)
 	.help()

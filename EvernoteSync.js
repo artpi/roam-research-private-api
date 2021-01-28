@@ -8,6 +8,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 	NoteStore = null;
 	notebookGuid = '';
 	defaultNotebook = '';
+	timeOut = 500;
 	mapping;
 	backlinks = {};
 	notesBeingImported = [];
@@ -82,20 +83,36 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		} else {
 			foundNote = this.findPreviousNote( url );
 		}
-		
-		foundNote.then( notes => {
+
+		const foundNotes = ( notes ) => {
 			if ( ! notes.totalNotes ) {
 				return Promise.resolve( new Evernote.Types.Note() );
 			}
 			if ( notes.notes[0].contentLength === nBody.length ) {
-				console.log( '[[' + noteTitle + ']]: content length has not changed, skipping' );
+				//console.log( '[[' + noteTitle + ']]: content length has not changed, skipping' );
 				return Promise.resolve( false );
 			}
-			return this.NoteStore.getNote( notes.notes[0].guid, true, false, false, false ).catch( ( err ) => {
-				console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
-				return Promise.resolve( false );
-			} );
-		} )
+			// These request we want to rate limit.
+			return new Promise( ( resolve, reject ) => setTimeout( () => {
+				this.NoteStore.getNote( notes.notes[0].guid, true, false, false, false )
+					.catch( ( err ) => {
+						console.warn( '[[' + noteTitle + ']] :Took too long to pull note ' );
+						if ( err.code === 'ETIMEDOUT' ) {
+							this.timeOut = this.timeOut * 2;
+							console.log( 'Exponential Backoff increased: ', this.timeOut );
+						}
+						if ( this.timeOut > 60000 * 5 ) {
+							console.error( 'Timeot reached 5 minutes. Exiting' );
+							require('process').exit();
+						}
+						resolve( foundNotes( notes ) );
+					} )
+					.then( result => resolve( result ) );
+			}, this.timeOut ) );
+
+		}
+
+		foundNote.then( foundNotes )
 		.then( ( ourNote ) => {
 			if ( ! ourNote ) {
 				return Promise.resolve( false );
@@ -125,9 +142,16 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 				}
 				console.log( '[[' + noteTitle + ']] Creating new note ' );
 				return this.NoteStore.createNote( ourNote ).then( ( note ) => {
-					this.mapping.set( uid, note );
+					this.mapping.set( uid, {
+						guid: note.guid,
+						title: note.title,
+						contentLength: note.contentLength
+					} );
 					return Promise.resolve( note );
-				} );
+				} ).catch( err => {
+					console.warn( 'Error creating note:', err );
+					Promise.resolve( false );
+				});
 			}
 		} );
 	}
@@ -223,6 +247,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 		const filter = new Evernote.NoteStore.NoteFilter();
 		const spec = new Evernote.NoteStore.NotesMetadataResultSpec();
 		spec.includeTitle = true;
+		spec.includeContentLength = true;
 		spec.includeDeleted = false;
 		spec.includeAttributes = true;
 		filter.words = 'contentClass:piszek.roam';
@@ -232,17 +257,18 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			if ( result.notes ) {
 				result.notes.forEach( ( note ) => {
 					if ( ! note.attributes.sourceURL ) {
+						console.log( note.title , 'no src url' );
 						return;
 					}
 					const match = note.attributes.sourceURL.match( /https:\/\/roamresearch\.com\/\#\/app\/[a-z]+\/page\/([a-zA-Z0-9_-]+)/);
 					if ( ! match ) {
+						console.log( note.title ,'no match', note.attributes.sourceURL );
 						return;
 					}
 
 					const uid = match[1];
-					if ( ! this.mapping.get( uid ) ) {
-						this.mapping.set( uid, note );
-					} else if ( this.mapping.get( uid ).guid !== note.guid ) {
+						
+					if ( this.mapping.get( uid ) && this.mapping.get( uid ).guid !== note.guid ) {
 						console.log(
 							'[[' + this.mapping.get( uid ).title + ']]',
 							'Note is a duplicate ',
@@ -250,6 +276,12 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 							this.getNoteUrl( note.guid )
 						);
 						// this.NoteStore.deleteNote( note.guid );
+					} else {
+						this.mapping.set( uid, {
+							guid: note.guid,
+							title: note.title,
+							contentLength: note.contentLength
+						} );
 					}
 				} );
 			}

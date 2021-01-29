@@ -125,7 +125,6 @@ const argv = yargs
 				.then( results => {
 					const payload = results[0].concat( results[1] );
 					console.log( 'Importing into Roam', JSON.stringify( payload, null, 2 ) );
-					require( 'process' ).exit();
 					if( payload.length > 0 ) {
 						return api.import( payload );
 					} else {

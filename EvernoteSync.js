@@ -63,6 +63,7 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			.replace( '&quot;', '"' );
 	}
 	wrapNote( noteBody ) {
+		noteBody = noteBody.replace( '&Amp;', '&amp;' ); // Readwise artifact
 		var nBody = '<?xml version="1.0" encoding="UTF-8"?>';
 		nBody += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">';
 		nBody += '<en-note>' + noteBody;
@@ -134,7 +135,10 @@ class EvernoteSyncAdapter extends RoamSyncAdapter {
 			if ( ourNote.guid ) {
 				console.log( '[[' + noteTitle + ']]: updating' );
 				ourNote.updated = Date.now();
-				return this.NoteStore.updateNote( ourNote );
+				return this.NoteStore.updateNote( ourNote ).catch( err => {
+					console.log( 'Update note problem', err, nBody );
+					return Promise.resolve( false );
+				} );
 			} else {
 				// parentNotebook is optional; if omitted, default notebook is used
 				if ( this.notebookGuid ) {

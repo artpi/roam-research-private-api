@@ -121,16 +121,23 @@ const argv = yargs
 		}
 	)
 	.command(
-		'export <dir> [exporturl]',
+		'export [--format json|md|edn] <dir> [exporturl]',
 		'Export your Roam database to a selected directory. If URL is provided, then the concent will be sent by POST request to the specified URL.',
-		() => {},
+                ( yargs ) => {
+                  yargs.option('format', {
+                    type: 'string',
+                    choices: ['json', 'md', 'edn'],
+                    desc: 'The format of the graph export to download',
+                    default: 'json',
+                  })
+                },
 		( argv ) => {
 			const RoamPrivateApi = require( '../' );
 			const api = new RoamPrivateApi( argv.graph, argv.email, argv.password, {
 				headless: ! argv.debug,
 				folder: argv['dir']
 			} );
-			let promises = api.getExportData( argv['removezip'] );
+			let promises = api.getExportData( argv['removezip'], argv.format );
 			promises.then( data => console.log( 'Downloaded' ) );
 			if ( argv['exporturl'] ) {
 				promises.then( data => fetch( argv['exporturl'], {

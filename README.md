@@ -64,6 +64,7 @@ As mentioned, this is also a library that you can use within your project. Here 
 - [Sync your Roam graph to Evernote](https://github.com/artpi/roam-research-private-api/blob/master/examples/sync_evernote.js)
 - [Import arbitrary data into any note](https://github.com/artpi/roam-research-private-api/blob/master/examples/import-data.js)
 - [Send note to Roam using the Quick Capture feature](https://github.com/artpi/roam-research-private-api/blob/master/examples/quick_capture.js)
+- [Download an EDN backup](https://github.com/artpi/roam-research-private-api/blob/master/examples/download-edn.js)
 
 ###
 

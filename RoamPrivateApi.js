@@ -1,10 +1,14 @@
 const puppeteer = require( 'puppeteer' );
 const fs = require( 'fs' );
-const path = require('path');
+const path = require( 'path' );
 const os = require( 'os' );
 const unzip = require( 'node-unzip-2' );
 const { isString } = require( 'util' );
 const moment = require( 'moment' );
+const stream = require( 'stream' );
+const { promisify } = require( 'util' );
+
+const pipeline = promisify( stream.pipeline );
 
 /**
  * This class represents wraps Puppeteer and exposes a few methods useful in manipulating Roam Research.
@@ -164,14 +168,15 @@ class RoamPrivateApi {
 	}
 
 	/**
-	 * Export your Roam database and return the JSON data.
+	 * Export your Roam database and return the data.
 	 * @param {boolean} autoremove - should the zip file be removed after extracting?
+	 * @param {boolean} format - The export format to download. md|json|edn. Defaults to md
 	 */
-	async getExportData( autoremove ) {
+	async getExportData( autoremove, format ) {
 		// Mostly for testing purposes when we want to use a preexisting download.
 		if ( ! this.options.nodownload ) {
 			await this.logIn();
-			await this.downloadExport( this.options.folder );
+			await this.downloadExport( this.options.folder, format );
 		}
 		const latestExport = this.getLatestFile( this.options.folder );
 		const content = await this.getContentsOfRepo( this.options.folder, latestExport );
@@ -181,6 +186,22 @@ class RoamPrivateApi {
 		await this.close();
 		return content;
 	}
+
+	/**
+	 * Export your Roam database and return the path to the downloaded ZIP file.
+	 * @param {boolean} format - The export format to download. md|json|edn. Defaults to md
+	 */
+	async getExportZip( format ) {
+		// Mostly for testing purposes when we want to use a preexisting download.
+		if ( ! this.options.nodownload ) {
+			await this.logIn();
+			await this.downloadExport( this.options.folder, format );
+		}
+		const latestExport = this.getLatestFile( this.options.folder );
+		await this.close();
+		return latestExport;
+	}
+
 	/**
 	 * Logs in to Roam interface.
 	 */
@@ -284,9 +305,19 @@ class RoamPrivateApi {
 
 	/**
 	 * Download Roam export to a selected folder.
-	 * @param {string} folder 
+	 * @param {string} folder
 	 */
-	async downloadExport( folder ) {
+	async downloadExport( folder, format ) {
+		format = format || 'md';
+
+		const formatString = {
+			md: 'Markdown',
+			json: 'JSON',
+			edn: 'EDN',
+		};
+
+		let expectedFormat = formatString[ format ] || formatString.md;
+
 		await this.page._client.send( 'Page.setDownloadBehavior', {
 			behavior: 'allow',
 			downloadPath: folder,
@@ -300,15 +331,33 @@ class RoamPrivateApi {
 		// // This should contain "Export All"
 		// await this.page.waitFor( 2000 );
 		// await this.page.click( '.bp3-menu :nth-child(4) a' );
-		//Change markdown to JSON:
-		// This should contain markdown
+
+		// Select the requested format
 		await this.page.waitForTimeout( 2000 );
-		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper button' );
-		// This should contain JSON
-		await this.page.waitForTimeout( 2000 );
-		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper .bp3-popover-dismiss' );
+
+		// First see what is already selected.
+		let currentSelection = await this.page.$eval(
+			'.bp3-dialog-container .bp3-popover-wrapper .bp3-button-text',
+			( e ) => e.innerText
+		);
+
+		if ( currentSelection !== expectedFormat ) {
+			// Open the dropdown
+			await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper button' );
+
+			// Examine the options and click the one we want.
+			let selections = await this.page.$$( '.bp3-dialog-container .bp3-popover-wrapper li a div' );
+			let buttonText = await Promise.all(
+				selections.map( ( s ) => s.evaluate( ( e ) => e.innerText ) )
+			);
+			let desiredIndex = buttonText.findIndex( ( t ) => t == expectedFormat );
+			if ( desiredIndex >= 0 ) {
+				await selections[ desiredIndex ].click();
+			}
+			await this.page.$$( '.bp3-dialog-container .bp3-popover-wrapper li a div', { hidden: true } );
+		}
+
 		// This should contain "Export All"
-		await this.page.waitForTimeout( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-intent-primary' );
 
 		await this.page.waitForTimeout( 60000 ); // This can take quite some time on slower systems
@@ -351,33 +400,73 @@ class RoamPrivateApi {
 
 	/**
 	 * Unzip the export and get the content.
-	 * @param {string} dir 
-	 * @param {string} file 
+	 * @param {string} dir
+	 * @param {string} file
 	 */
 	getContentsOfRepo( dir, file ) {
+		let resolveFile;
+
 		return new Promise( ( resolve, reject ) => {
+			let donePromises = [];
 			const stream = fs.createReadStream( file ).pipe( unzip.Parse() );
 			stream.on( 'entry', function ( entry ) {
 				var fileName = entry.path;
 				var type = entry.type; // 'Directory' or 'File'
 				var size = entry.size;
+				let outputFilename;
 				if ( fileName.indexOf( '.json' ) != -1 ) {
-					entry.pipe( fs.createWriteStream( path.resolve( dir, 'db.json' ) ) );
+					outputFilename = 'db.json';
+					resolveFile = outputFilename;
+				} else if ( fileName.indexOf( '.edn' ) != -1 ) {
+					outputFilename = 'db.edn';
+					resolveFile = outputFilename;
+				} else if ( fileName.indexOf( '.md' ) != -1 ) {
+					outputFilename = fileName;
 				} else {
 					entry.autodrain();
 				}
+
+				if ( outputFilename ) {
+					// Markdown files can be in nested directories, so see if we need to create the directories.
+					let outputDir = path.dirname( outputFilename );
+					if ( outputDir && outputDir !== '.' ) {
+						try {
+							fs.mkdirSync( path.resolve( dir, outputDir ), { recursive: true } );
+						} catch ( e ) {
+							// If the directory already exists, that's ok.
+							// Anything else is an error
+							if ( e.code !== 'EEXIST' ) {
+								throw e;
+							}
+						}
+					}
+
+					let donePromise = pipeline(
+						entry,
+						fs.createWriteStream( path.resolve( dir, outputFilename ) )
+					);
+					donePromises.push( donePromise );
+				}
 			} );
-			// Timeouts are here so that the system locks can be removed - takes time on some systems.
-			stream.on( 'close', function () {
-				setTimeout( function() {
-					fs.readFile( path.resolve( dir, 'db.json' ), 'utf8', function ( err, data ) {
+			stream.on( 'close', async function () {
+				await Promise.all( donePromises );
+
+				if ( resolveFile ) {
+					fs.readFile( path.resolve( dir, resolveFile ), 'utf8', function ( err, data ) {
 						if ( err ) {
 							reject( err );
 						} else {
-							resolve( JSON.parse( data ) );	
+							if ( resolveFile.endsWith( '.json' ) ) {
+								resolve( JSON.parse( data ) );
+							} else {
+								resolve( data );
+							}
 						}
 					} );
-				}, 1000 );
+				} else {
+					// For markdown, just resolve the directory name since there are multiple files
+					resolve( dir );
+				}
 			} );
 		} );
 	}

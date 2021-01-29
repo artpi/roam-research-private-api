@@ -100,7 +100,7 @@ const argv = yargs
 			const importIntoRoam = [];
 			if ( argv.privateapiurl ) {
 				const private_api = fetch( argv.privateapiurl ).then( response => response.json() );
-				private_api.then( data => console.log( 'Private API payload', data ) );
+				private_api.then( data => console.log( 'Private API payload', JSON.stringify( data, null, 2 ) ) );
 				importIntoRoam.push( private_api );
 			}
 
@@ -115,7 +115,7 @@ const argv = yargs
 			}
 
 			// This finds notes IN Evernote to import into Roam:
-			evernote_to_roam
+			evernote_to_roam = evernote_to_roam
 				.then( () => e.getNotesToImport() )
 				.then( payload => Promise.resolve( e.getRoamPayload( payload ) ) );
 				importIntoRoam.push( evernote_to_roam );
@@ -124,6 +124,8 @@ const argv = yargs
 			const roamdata = Promise.all( importIntoRoam )
 				.then( results => {
 					const payload = results[0].concat( results[1] );
+					console.log( 'Importing into Roam', JSON.stringify( payload, null, 2 ) );
+					require( 'process' ).exit();
 					if( payload.length > 0 ) {
 						return api.import( payload );
 					} else {
@@ -148,6 +150,7 @@ const argv = yargs
 						} ),
 						headers: {'Content-Type': 'application/json'}
 					} ) )
+					.then( response => response.text() )
 					.then( ( data ) => console.log( 'Updated in your remote URL', data ) );
 				}
 

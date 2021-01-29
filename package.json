@@ -1,6 +1,6 @@
 {
 	"name": "roam-research-private-api",
-	"version": "0.9.1",
+	"version": "0.9.2",
 	"description": "Library that loads your Roam Research graph as a browser and performs tasks as you.",
 	"homepage": "https://deliber.at/roam/roam-api/",
 	"keywords": [

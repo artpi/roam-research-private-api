@@ -230,6 +230,7 @@ class RoamPrivateApi {
 		// Sets the value of the file input to fileToUpload
 		inputUploadHandle.uploadFile( fileName );
 		await this.page.waitForSelector( '.bp3-dialog .bp3-intent-primary' );
+		await this.page.waitForTimeout( 1000 );
 		await this.page.click( '.bp3-dialog .bp3-intent-primary' );
 		await this.page.waitForTimeout( 3000 );
 		await this.removeImportBlockFromDailyNote();

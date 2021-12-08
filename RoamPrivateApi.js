@@ -34,12 +34,14 @@ class RoamPrivateApi {
 	 * More about the query syntax: https://www.zsolt.blog/2021/01/Roam-Data-Structure-Query.html
 	 * @param {string} query - datalog query.
 	 */
-	async runQuery( query ) {
+	async runQuery( query, inputs) {
 		return await this.page.evaluate( ( query ) => {
 			if ( ! window.roamAlphaAPI ) {
 				return Promise.reject( 'No Roam API detected' );
 			}
-			const result = window.roamAlphaAPI.q( query );
+			const result = inputs === undefined ?
+				window.roamAlphaAPI.q( query )
+				: window.roamAlphaAPI.q( query, inputs );
 			console.log( result );
 			return Promise.resolve( result );
 		}, query );

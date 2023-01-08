@@ -306,7 +306,7 @@ class RoamPrivateApi {
 		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper button' );
 		// This should contain JSON
 		await this.page.waitForTimeout( 2000 );
-		await this.page.click( '.bp3-dialog-container .bp3-popover-wrapper .bp3-popover-dismiss' );
+		await this.page.click( '.bp3-menu > li:nth-child(2) a' );
 		// This should contain "Export All"
 		await this.page.waitForTimeout( 2000 );
 		await this.page.click( '.bp3-dialog-container .bp3-intent-primary' );
